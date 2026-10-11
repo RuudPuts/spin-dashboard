@@ -16,6 +16,7 @@
 │                                                                                    │
 │  web ── ThreadingHTTPServer :8089 ── /  → static/index.html                        │
 │                                      /data/days.json, /data/days/<day>.csv         │
+│                                      /data/stream  (SSE: elke who-regel live)      │
 └────────────────────────────────────────────────────────────────────────────────────┘
           ▲ /mnt (ro,slave)   ▲ /var/local/emhttp (ro)   ▲ docker.sock (ro)   ▼ /data (rw)
 ```
@@ -60,9 +61,12 @@ stays unchanged.
 
 Below the spin-up analysis, the *Active drives* panel shows per drive the top write/read sources and
 files over the period (also without spin-ups), and a *Live activity* feed lists the most recent file
-events newest-first with an R/W marker and a relative time; new items since the last refresh get a
-short highlight. The feed re-renders every 30 s so the "x min ago" labels stay current, and hovering
-a truncated file path shows the full path in an overlay.
+events newest-first with an R/W marker and a relative time. The feed is **live**: the web server keeps
+a Server-Sent Events stream (`/data/stream`) open per browser, and `write_who()` pushes each new line
+onto every open stream the moment it is logged. So the feed updates instantly instead of waiting for
+the next minute fetch; the periodic fetch stays the source of truth and re-syncs on (re)load. New
+items get a short highlight, the feed re-renders every 30 s so the "x min ago" labels stay current,
+and hovering a truncated file path shows the full path in an overlay.
 
 ## Why one process
 

@@ -383,3 +383,44 @@ test('hovering a file path in Active drives shows the full path overlay', async 
   assert.equal(tip.hidden, true);
   dom.window.close();
 });
+
+// ---------- live stream (Server-Sent Events) ----------
+function loadWithStream(files) {
+  let handler = null;
+  const dom = new JSDOM(HTML, {
+    runScripts: 'dangerously',
+    url: 'http://dash/?lang=nl',
+    beforeParse(w) {
+      Object.defineProperty(w.navigator, 'languages', { value: ['en-US'] });
+      w.fetch = (u) => {
+        const key = Object.keys(files).find((k) => u.includes(k));
+        if (!key || files[key] === null) return Promise.resolve({ ok: false });
+        return Promise.resolve({ ok: true, text: () => Promise.resolve(files[key]),
+                                 json: () => Promise.resolve(JSON.parse(files[key])) });
+      };
+      w.EventSource = class {
+        constructor() { }
+        set onmessage(fn) { handler = fn; }
+        set onerror(fn) { }
+        close() { }
+      };
+      w.__push = (line) => handler && handler({ data: line });
+    },
+  });
+  return new Promise((resolve) => setTimeout(() => resolve(dom), 300));
+}
+
+test('a streamed who line appears in the feed immediately', async () => {
+  const dom = await loadWithStream(RW);
+  const d = dom.window.document, w = dom.window;
+  const before = d.querySelectorAll('#feed li').length;
+  // simuleer een event dat de server net heeft gelogd
+  w.__push(`${Math.floor(Date.now() / 1000)},who,container,radarr,99,geschreven,/mnt/trunk/appdata/radarr/radarr.db`);
+  await new Promise((r) => setTimeout(r, 50));
+  const items = [...d.querySelectorAll('#feed li')];
+  assert.ok(items.length > before, 'feed groeit zonder te wachten op de minuten-fetch');
+  assert.match(text(items[0]), /radarr\.db/);          // nieuwste bovenaan
+  assert.ok(items[0].querySelector('.fb.w'), 'write badge op het gestreamde event');
+  assert.ok(items[0].classList.contains('fresh'), 'nieuw item krijgt een highlight');
+  dom.window.close();
+});

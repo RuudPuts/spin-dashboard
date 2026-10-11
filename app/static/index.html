@@ -698,11 +698,12 @@ function causeHtml(c){
 
 /* ---------- wie: bron van een toegang (who-regels) ---------- */
 const normPath = p => p.replace(/\/+$/, '');
+// sleutel voor de who-index: SMB/NFS-regels gelden voor de hele share
+const whoKey = w => normPath(isShareUser(w) ? (shareRootOf(w.path) || w.path) : w.path);
 function indexWho(list){
   const byPath = new Map();
   for (const w of list){
-    // SMB/NFS: ook oudere regels per bestand vallen onder de share
-    const k = normPath(isShareUser(w) ? (shareRootOf(w.path) || w.path) : w.path);
+    const k = whoKey(w);
     if (!byPath.has(k)) byPath.set(k, []);
     byPath.get(k).push(w);
   }
@@ -1380,7 +1381,32 @@ async function tick(){
   setInterval(() => { if (!document.hidden) tick(); }, 60000);
   // de feed toont relatieve tijden ("2 min geleden"); ververs die vaker dan de data zelf
   setInterval(() => { if (!document.hidden && data) renderFeed(); }, 30000);
+  streamLive();
 })();
+
+/* ---------- live stream (Server-Sent Events) ---------- */
+// De server stuurt elke nieuwe who-regel direct; zo stroomt de feed in plaats van per minuut.
+// De minuten-fetch blijft de bron van waarheid; de stream is een versneller daar bovenop.
+function streamLive(){
+  if (!('EventSource' in window)) return;
+  const es = new EventSource('data/stream');
+  es.onmessage = ev => { if (data && data.source === LIVE) ingestWho(ev.data); };
+  es.onerror = () => { /* EventSource herverbindt zelf */ };
+}
+// Eén who-regel live verwerken: toevoegen aan de who-index en de activiteitenstroom,
+// daarna alleen de feed opnieuw tekenen (de rest volgt bij de minuten-fetch).
+function ingestWho(line){
+  const {who} = parseText(line);
+  if (!who.length) return;
+  const w0 = who[0], k = whoKey(w0);
+  const list = data.who.get(k) || [];
+  list.push(w0);
+  data.who.set(k, list);
+  const add = mergeActivity([], [w0]);            // zelfde omzetting als bij het laden
+  data.act = data.act.concat(add).sort((p, q) => p.t - q.t);
+  renderFeed();
+  renderActDrives(...bounds(), Object.keys(data.disks).sort(devOrder));
+}
 })();
 </script>
 </body>

@@ -56,6 +56,7 @@ within that window each get their own line.
 |---|---|
 | `/data/days.json` | `{"days": ["2026-10-08", "2026-10-09"]}`, ascending |
 | `/data/days/YYYY-MM-DD.csv` | One day file. Any other path under `/data/` returns 404. |
+| `/data/stream` | Server-Sent Events. Every `who` line is pushed the moment it is logged (`data: <line>`), with a `: ping` every 30 s to keep the connection alive. Powers the live feed; the day files stay the source of truth. |
 
 ## Retention
 
