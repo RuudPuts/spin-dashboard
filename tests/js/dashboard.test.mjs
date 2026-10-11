@@ -358,6 +358,21 @@ test('live activity feed shows recent files newest first with R/W dot', async ()
   dom.window.close();
 });
 
+test('feed shows the folder structure and the full path in the overlay', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document, w = dom.window;
+  const fp = [...d.querySelectorAll('#feed .fp')].find((el) => /a\.mkv/.test(el.textContent));
+  // zichtbaar: share-relatief pad met mappen, niet alleen de bestandsnaam
+  assert.equal(fp.textContent, '/Media/series/a.mkv');
+  // volledige pad in data-path voor de hover-overlay
+  assert.equal(fp.dataset.path, '/mnt/trunk/Media/series/a.mkv');
+  fp.dispatchEvent(new w.Event('focusin', { bubbles: true }));
+  const tip = d.getElementById('tip');
+  assert.equal(tip.hidden, false);
+  assert.equal(tip.textContent, '/mnt/trunk/Media/series/a.mkv');
+  dom.window.close();
+});
+
 test('last hour toggle narrows the window and shows minute ticks', async () => {
   const dom = await load(RW);
   const d = dom.window.document, w = dom.window;

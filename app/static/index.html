@@ -145,6 +145,7 @@ h3.sub{font-size:13.5px;font-weight:600;margin:18px 0 6px}
 .feed .fb{min-width:1.15rem;text-align:center;font-size:10px;font-weight:700;line-height:1.4;border-radius:4px;padding:0 3px;color:#fff}
 .feed .fb.w{background:var(--up)} .feed .fb.r{background:var(--spin)}
 .feed .fp{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.haspath{cursor:help}
 .feed .fs{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:9rem}
 .feed time{color:var(--muted);white-space:nowrap;font-size:12px}
 @media (prefers-reduced-motion:reduce){.feed li.fresh{animation:none}}
@@ -1050,10 +1051,11 @@ function renderFeed(){
     if (lis.length >= FEED_MAX) continue;
     const d = dirOf(e) || (WRITES.test(e.ev) ? 'w' : 'r');
     const w = whoFor(e);
+    // toon het share-relatieve pad (mappen + bestand); het volledige pad zit in de hover-overlay
     lis.push(`<li${isFresh ? ' class="fresh"' : ''} data-k="${esc(k)}">
       <span class="dot ${d}"></span>
       <span class="fb ${d}" title="${esc(t(d === 'w' ? 'rwW' : 'rwR'))}">${d.toUpperCase()}</span>
-      <span class="fp" title="${esc(e.path)}">${esc(tailOf(e))}</span>
+      <span class="fp haspath" data-path="${esc(e.path)}">${esc(relPath(e))}</span>
       <span class="fs">${esc(w ? whoLabel(w) : nameOf(e.disk))}</span>
       <time>${esc(feedAgo(now, e.t))}</time></li>`);
   }
@@ -1062,9 +1064,9 @@ function renderFeed(){
   if (feedSeen.size > 2000){ feedSeen.clear(); for (const e of feedEvents()) feedSeen.add(feedKey(e)); }
 }
 
-/* ---------- volledig pad als overlay bij hover in Actieve schijven ---------- */
+/* ---------- volledig pad als overlay bij hover (Actieve schijven + live-feed) ---------- */
 // Afgekapte bestandsrijen (.haspath) tonen bij hover/focus/tik het volledige pad in een overlay.
-const actEl = $('actDrives');
+// Delegatie op document, zodat het zowel in Actieve schijven als in de live-feed werkt.
 const pathOf = e => e.target.closest && e.target.closest('.haspath');
 function showPath(el){
   const tip = $('tip');
@@ -1077,11 +1079,11 @@ function showPath(el){
   tip.style.top = (below + tip.offsetHeight > innerHeight - 8 ? r.top - tip.offsetHeight - 8 : below) + 'px';
 }
 const hidePath = () => { const tip = $('tip'); tip.hidden = true; tip.style.maxWidth = ''; };
-actEl.addEventListener('pointerover', e => { const el = pathOf(e); if (el && e.pointerType !== 'touch') showPath(el); });
-actEl.addEventListener('pointerout', e => { if (pathOf(e) && e.pointerType !== 'touch') hidePath(); });
-actEl.addEventListener('focusin', e => { const el = pathOf(e); if (el) showPath(el); });
-actEl.addEventListener('focusout', e => { if (pathOf(e)) hidePath(); });
-actEl.addEventListener('click', e => { const el = pathOf(e); if (el) $('tip').hidden ? showPath(el) : hidePath(); });
+document.addEventListener('pointerover', e => { const el = pathOf(e); if (el && e.pointerType !== 'touch') showPath(el); });
+document.addEventListener('pointerout', e => { if (pathOf(e) && e.pointerType !== 'touch') hidePath(); });
+document.addEventListener('focusin', e => { const el = pathOf(e); if (el) showPath(el); });
+document.addEventListener('focusout', e => { if (pathOf(e)) hidePath(); });
+document.addEventListener('click', e => { const el = pathOf(e); if (el) $('tip').hidden ? showPath(el) : hidePath(); });
 
 /* ---------- info-icoontjes met uitleg (hover, focus of tik) ---------- */
 const infoBtn = key => key
