@@ -340,3 +340,46 @@ test('legacy who line without direction still renders without a badge', async ()
   assert.match(up, /gelezen: a\.mkv/);            // oude regel toont als 'gelezen', geen richting-badge
   dom.window.close();
 });
+
+// ---------- live feed, laatste uur en pad-overlay ----------
+test('live activity feed shows recent files newest first with R/W dot', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document;
+  const items = [...d.querySelectorAll('#feed li')];
+  assert.ok(items.length >= 3, items.map(text).join(' | '));
+  // nieuwste (bazarr, 120 min geleden) bovenaan; oudste (plex, 200 min) onderaan
+  assert.match(text(items[0]), /a\.mkv/);
+  assert.match(text(items[items.length - 1]), /server\.log/);
+  // R/W-punten aanwezig
+  assert.ok(d.querySelector('#feed .fb.w'), 'write badge');
+  assert.ok(d.querySelector('#feed .fb.r'), 'read badge');
+  // relatieve tijd aanwezig (min of uur geleden)
+  assert.match(text(items[0]), /\d+ (min|u) geleden/);
+  dom.window.close();
+});
+
+test('last hour toggle narrows the window and shows minute ticks', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document, w = dom.window;
+  d.querySelector('[data-range="h"]').click();
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(d.querySelector('[data-range="h"]').getAttribute('aria-pressed'), 'true');
+  // gebeurtenissen ouder dan een uur vallen buiten de tabel
+  const r = rows(d);
+  assert.equal(r.filter((x) => /Opgespind|Naar standby/.test(x)).length, 0, r.join('\n'));
+  dom.window.close();
+});
+
+test('hovering a file path in Active drives shows the full path overlay', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document, w = dom.window;
+  const el = d.querySelector('#actDrives .haspath');
+  assert.ok(el, 'file row with path');
+  el.dispatchEvent(new w.Event('focusin', { bubbles: true }));
+  const tip = d.getElementById('tip');
+  assert.equal(tip.hidden, false);
+  assert.match(tip.textContent, /\/appdata\//);
+  el.dispatchEvent(new w.Event('focusout', { bubbles: true }));
+  assert.equal(tip.hidden, true);
+  dom.window.close();
+});

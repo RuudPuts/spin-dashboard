@@ -2,6 +2,12 @@
 
 Newest first.
 
+## 2026-10-11: live feed and browsing
+- Live activity feed under Active drives: newest file events first, with R/W marker, source and a
+  relative time; items new since the last refresh get a short highlight
+- "Last hour" period toggle with 10-minute axis ticks
+- Hovering a truncated file path in Active drives shows the full path in an overlay
+
 ## 2026-10-11: reads vs. writes and active drives
 - `fatrace` filter `O+W+D<`: writes to already-open files are now logged, not just opens
 - Read vs. write direction per access: `geschreven` (a `W` event or an open with write intent) next

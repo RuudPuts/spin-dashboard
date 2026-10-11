@@ -53,10 +53,16 @@ are removed as a whole. On start, `migrate()` converts files from older versions
 **Frontend.** Every minute it fetches `days.json` and the day files (conditionally, 304 when
 unchanged), merges `activity` lines (old inotify data) and `who` lines into one activity stream
 and links it to spin-ups. `state` lines set the state but are never a spin-up. The period is
-24 hours, 7 days, 30 days or all; `offset` shifts the window back by whole periods. Texts come
-from `I18N` (en, nl, fr, de, es) via `t()`; dates via `Intl` in the locale of the chosen language.
-The `(al gestopt)` suffix in who lines is translated when shown; the data format itself stays
-unchanged.
+last hour, 24 hours, 7 days, 30 days or all; `offset` shifts the window back by whole periods.
+Texts come from `I18N` (en, nl, fr, de, es) via `t()`; dates via `Intl` in the locale of the chosen
+language. The `(al gestopt)` suffix in who lines is translated when shown; the data format itself
+stays unchanged.
+
+Below the spin-up analysis, the *Active drives* panel shows per drive the top write/read sources and
+files over the period (also without spin-ups), and a *Live activity* feed lists the most recent file
+events newest-first with an R/W marker and a relative time; new items since the last refresh get a
+short highlight. The feed re-renders every 30 s so the "x min ago" labels stay current, and hovering
+a truncated file path shows the full path in an overlay.
 
 ## Why one process
 
