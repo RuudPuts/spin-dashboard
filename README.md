@@ -9,11 +9,19 @@ See when your hard drives spin up and down, and **why**.
 
 - A timeline per disk: every spin-up, how long it ran, how much of the day the disk was active.
 - The cause of each spin-up: the first file that was opened, and **who** opened it: a Docker container (Plex, Sonarr, Bazarr, …), Unraid itself (mover, cron / User Scripts, webGUI, shfs) or a user (SMB/NFS share, shell).
+- **Reads vs. writes**: each access is labelled read or write, so you can see whether a drive is being read or kept busy by writes (logs, databases, metadata).
+- **Active drives**: per drive, the top write and read sources and files over the selected period — answers "why is this drive never idle", even when there were no spin-ups.
+- **Live activity feed**: the most recent file events stream in as they happen (over Server-Sent Events), newest first, with an R/W marker, source and relative time.
 - Click a spin-up to see every file that was opened during that session, with time and source.
 - Rankings of what wakes your drives, by folder and by source.
-- Browse back and forward through history: a day at a time in the 24-hour view, a week in the 7-day view, a month (30 days) in the 30-day view.
+- Browse back and forward through history: the last hour, a day at a time in the 24-hour view, a week in the 7-day view, a month (30 days) in the 30-day view.
 - Available in English, Dutch, French, German and Spanish. Follows your browser language; pick another one at the top right.
 - Works with the array and with HDD pools (XFS, Btrfs, ZFS). SSD/NVMe pools are ignored.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/active-drives-live-activity.png">
+  <img alt="Active drives: per drive the top write and read sources and files, and a live activity feed of the most recent file events" src="docs/images/active-drives-live-activity.png">
+</picture>
 
 ## Install
 
@@ -75,9 +83,10 @@ Open the WebUI on port 8089. The first drive check runs within a minute; file so
 |---|---|
 | Drive state | `hdparm -C` every 60 s (falls back to `smartctl -n standby`). Neither wakes a sleeping drive. Only changes are stored. |
 | Disk names | Read from Unraid's `/var/local/emhttp/disks.ini` (parity, disk1, pool members). |
-| File access | `fatrace` (fanotify) on every HDD-backed mount, including ZFS datasets. |
+| File access | `fatrace` (fanotify) on every HDD-backed mount, including ZFS datasets. Opens, writes to open files, creates, deletes and moves, each labelled read or write. |
 | Source | The process behind each access is looked up in the host process table. Containers are recognised by cgroup and named via the Docker socket. Access through `/mnt/user` passes through shfs; the dashboard then looks up which process has the file open via `/mnt/user`. |
 | Storage | One plain CSV file per day in `days/` in the appdata folder, with drive states and file access together. History is kept for 30 days by default. Files from older versions (`spin.csv`, `who.csv`, …) are converted automatically on start and moved to `legacy/`. |
+| Live feed | A Server-Sent Events stream (`/data/stream`) pushes every file event the moment it is logged, so the dashboard updates live. |
 
 ## Permissions, and why
 
