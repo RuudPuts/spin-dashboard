@@ -16,6 +16,7 @@
 │                                                                                    │
 │  web ── ThreadingHTTPServer :8089 ── /  → static/index.html                        │
 │                                      /data/days.json, /data/days/<day>.csv         │
+│                                      /data/stream  (SSE: elke who-regel live)      │
 └────────────────────────────────────────────────────────────────────────────────────┘
           ▲ /mnt (ro,slave)   ▲ /var/local/emhttp (ro)   ▲ docker.sock (ro)   ▼ /data (rw)
 ```
@@ -29,7 +30,7 @@ lines, plus the disk names as `disk` lines.
 
 **Watcher.** Determines the mounts to watch: `/mnt/<name>` for array disks (`disk1`) and
 pools (pool member `trunk2` belongs to `/mnt/trunk`), plus every mount below them (ZFS datasets).
-Each mount gets a `fatrace -c` with filter `O+D<` (open, create, delete, move). `fatrace` uses
+Each mount gets a `fatrace -c` with filter `O+WD<` (open, write, create, delete, move). `fatrace` uses
 `FAN_MARK_FILESYSTEM`, so access from other mount namespaces (the host, other containers) is
 seen as well. Every minute it checks whether the mounts changed or a `fatrace` stopped.
 
@@ -42,8 +43,9 @@ SMB/NFS → shell (sshd, ttyd, login) → shfs → btrfs → mover → cron → 
 stopped in the meantime get the same source; "stopped" itself is not remembered. See
 *Ignoring Cache Dirs* in `decisions.md`.
 
-**Deduplication.** The same path + kind + name only once per `DEDUP_SECONDS` (600). SMB/NFS is
-summarised into one line per share.
+**Deduplication.** The same path + kind + name + action only once per `DEDUP_SECONDS` (600).
+SMB/NFS is summarised into one line per share. The action is part of the key so that a read and a
+write of the same file within the window each appear once.
 
 **Storage.** All lines go to the day file of their own timestamp (`append_lines`). Old day files
 are removed as a whole. On start, `migrate()` converts files from older versions; see
@@ -52,10 +54,19 @@ are removed as a whole. On start, `migrate()` converts files from older versions
 **Frontend.** Every minute it fetches `days.json` and the day files (conditionally, 304 when
 unchanged), merges `activity` lines (old inotify data) and `who` lines into one activity stream
 and links it to spin-ups. `state` lines set the state but are never a spin-up. The period is
-24 hours, 7 days, 30 days or all; `offset` shifts the window back by whole periods. Texts come
-from `I18N` (en, nl, fr, de, es) via `t()`; dates via `Intl` in the locale of the chosen language.
-The `(al gestopt)` suffix in who lines is translated when shown; the data format itself stays
-unchanged.
+last hour, 24 hours, 7 days, 30 days or all; `offset` shifts the window back by whole periods.
+Texts come from `I18N` (en, nl, fr, de, es) via `t()`; dates via `Intl` in the locale of the chosen
+language. The `(al gestopt)` suffix in who lines is translated when shown; the data format itself
+stays unchanged.
+
+Below the spin-up analysis, the *Active drives* panel shows per drive the top write/read sources and
+files over the period (also without spin-ups), and a *Live activity* feed lists the most recent file
+events newest-first with an R/W marker and a relative time. The feed is **live**: the web server keeps
+a Server-Sent Events stream (`/data/stream`) open per browser, and `write_who()` pushes each new line
+onto every open stream the moment it is logged. So the feed updates instantly instead of waiting for
+the next minute fetch; the periodic fetch stays the source of truth and re-syncs on (re)load. New
+items get a short highlight, the feed re-renders every 30 s so the "x min ago" labels stay current,
+and hovering a truncated file path shows the full path in an overlay.
 
 ## Why one process
 

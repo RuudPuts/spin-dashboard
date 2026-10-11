@@ -81,9 +81,9 @@ test('session list collapses SMB access to one entry per share', async () => {
   d.querySelector('tr.has-sess .sess').click();
   const files = [...d.querySelectorAll('.files li')].map(text);
   assert.deepEqual(files.map((f) => f.replace(/^\S+ /, '')), [
-    'gelezen bazarr /Media/series/a.mkv',
+    'R gelezen bazarr /Media/series/a.mkv',
     'via share SMB-share /Media/',
-    'gelezen plex /Media/series/c.mkv',
+    'R gelezen plex /Media/series/c.mkv',
   ]);
   dom.window.close();
 });
@@ -273,5 +273,169 @@ test('day files are combined, and a state line is not a spin-up', async () => {
   assert.equal(r.filter((x) => /Opgespind/.test(x)).length, 1, r.join('\n'));   // alleen die van gisteren
   assert.equal(r.filter((x) => /Naar standby/.test(x)).length, 2);
   assert.match(text(d.querySelector('.lane-stats')), /^1 spin-ups/);
+  dom.window.close();
+});
+
+// ---------- lezen/schrijven en actieve schijven ----------
+const RW = served({ d1: [
+  `${ep(300)},disk,sdd,trunk`,
+  `${ep(300)},state,sdd,active`,                                       // draait al, geen spin-up
+  `${ep(200)},who,container,plex,10,geschreven,/mnt/trunk/appdata/plex/Logs/server.log`,
+  `${ep(190)},who,container,plex,10,geschreven,/mnt/trunk/appdata/plex/Logs/server.log`,
+  `${ep(180)},who,container,sonarr,11,geschreven,/mnt/trunk/appdata/sonarr/sonarr.db`,
+  `${ep(120)},who,container,bazarr,12,geopend,/mnt/trunk/Media/series/a.mkv`,
+] });
+
+test('a write event is grouped under the drive in the active-drives view', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document;
+  const ad = d.getElementById('actDrives');
+  assert.ok(ad.querySelector('.actdisk'), text(ad));
+  assert.match(text(ad), /plex/);
+  assert.match(text(ad), /sonarr/);
+  dom.window.close();
+});
+
+test('a write event in a session list carries a W badge, a read an R badge', async () => {
+  const SES = served({ d1: [
+    `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,standby`,
+    `${ep(121)},who,container,plex,10,geschreven,/mnt/trunk/appdata/plex/Logs/server.log`,
+    `${ep(120.5)},who,container,bazarr,2,geopend,/mnt/trunk/Media/series/a.mkv`,
+    `${ep(120)},spin,sdd,active`, `${ep(60)},spin,sdd,standby`,
+  ] });
+  const dom = await load(SES);
+  const d = dom.window.document;
+  d.querySelector('tr.has-sess .sess').click();
+  const badges = [...d.querySelectorAll('.files .ev .rw')].map((b) => b.textContent);
+  assert.ok(badges.includes('W'), badges.join(','));   // geschreven -> W
+  assert.ok(badges.includes('R'), badges.join(','));   // geopend op bestand -> R
+  dom.window.close();
+});
+
+test('active drives ranks the top writer and shows write counts', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document;
+  const ad = text(d.getElementById('actDrives'));
+  assert.match(ad, /trunk/);
+  // plex schreef 2x, sonarr 1x, bazarr las 1x -> schrijven staat boven lezen
+  assert.match(ad, /Schrijven/);
+  assert.match(ad, /Lezen/);
+  // volgorde binnen Schrijven: plex (2) voor sonarr (1)
+  const wcol = d.querySelector('.actdisk .actcols > div');
+  const names = [...wcol.querySelectorAll('.cn')].map(text);
+  assert.ok(names.indexOf('plex') < names.indexOf('sonarr'), names.join(','));
+  dom.window.close();
+});
+
+test('legacy who line without direction still renders without a badge', async () => {
+  // oud 'geopend'-record van een bestand: geen R/W-badge (richting onbekend), geen crash
+  const LEG = served({ d1: [
+    `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,standby`,
+    `${ep(121)},who,container,bazarr,2,geopend,/mnt/trunk/Media/series/a.mkv`,
+    `${ep(120)},spin,sdd,active`, `${ep(60)},spin,sdd,standby`,
+  ] });
+  const dom = await load(LEG);
+  const d = dom.window.document;
+  const up = rows(d).find((x) => /Opgespind/.test(x));
+  assert.match(up, /gelezen: a\.mkv/);            // oude regel toont als 'gelezen', geen richting-badge
+  dom.window.close();
+});
+
+// ---------- live feed, laatste uur en pad-overlay ----------
+test('live activity feed shows recent files newest first with R/W dot', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document;
+  const items = [...d.querySelectorAll('#feed li')];
+  assert.ok(items.length >= 3, items.map(text).join(' | '));
+  // nieuwste (bazarr, 120 min geleden) bovenaan; oudste (plex, 200 min) onderaan
+  assert.match(text(items[0]), /a\.mkv/);
+  assert.match(text(items[items.length - 1]), /server\.log/);
+  // R/W-punten aanwezig
+  assert.ok(d.querySelector('#feed .fb.w'), 'write badge');
+  assert.ok(d.querySelector('#feed .fb.r'), 'read badge');
+  // relatieve tijd aanwezig (min of uur geleden)
+  assert.match(text(items[0]), /\d+ (min|u) geleden/);
+  dom.window.close();
+});
+
+test('feed shows the folder structure and the full path in the overlay', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document, w = dom.window;
+  const fp = [...d.querySelectorAll('#feed .fp')].find((el) => /a\.mkv/.test(el.textContent));
+  // zichtbaar: share-relatief pad met mappen, niet alleen de bestandsnaam
+  assert.equal(fp.textContent, '/Media/series/a.mkv');
+  // volledige pad in data-path voor de hover-overlay
+  assert.equal(fp.dataset.path, '/mnt/trunk/Media/series/a.mkv');
+  fp.dispatchEvent(new w.Event('focusin', { bubbles: true }));
+  const tip = d.getElementById('tip');
+  assert.equal(tip.hidden, false);
+  assert.equal(tip.textContent, '/mnt/trunk/Media/series/a.mkv');
+  dom.window.close();
+});
+
+test('last hour toggle narrows the window and shows minute ticks', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document, w = dom.window;
+  d.querySelector('[data-range="h"]').click();
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(d.querySelector('[data-range="h"]').getAttribute('aria-pressed'), 'true');
+  // gebeurtenissen ouder dan een uur vallen buiten de tabel
+  const r = rows(d);
+  assert.equal(r.filter((x) => /Opgespind|Naar standby/.test(x)).length, 0, r.join('\n'));
+  dom.window.close();
+});
+
+test('hovering a file path in Active drives shows the full path overlay', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document, w = dom.window;
+  const el = d.querySelector('#actDrives .haspath');
+  assert.ok(el, 'file row with path');
+  el.dispatchEvent(new w.Event('focusin', { bubbles: true }));
+  const tip = d.getElementById('tip');
+  assert.equal(tip.hidden, false);
+  assert.match(tip.textContent, /\/appdata\//);
+  el.dispatchEvent(new w.Event('focusout', { bubbles: true }));
+  assert.equal(tip.hidden, true);
+  dom.window.close();
+});
+
+// ---------- live stream (Server-Sent Events) ----------
+function loadWithStream(files) {
+  let handler = null;
+  const dom = new JSDOM(HTML, {
+    runScripts: 'dangerously',
+    url: 'http://dash/?lang=nl',
+    beforeParse(w) {
+      Object.defineProperty(w.navigator, 'languages', { value: ['en-US'] });
+      w.fetch = (u) => {
+        const key = Object.keys(files).find((k) => u.includes(k));
+        if (!key || files[key] === null) return Promise.resolve({ ok: false });
+        return Promise.resolve({ ok: true, text: () => Promise.resolve(files[key]),
+                                 json: () => Promise.resolve(JSON.parse(files[key])) });
+      };
+      w.EventSource = class {
+        constructor() { }
+        set onmessage(fn) { handler = fn; }
+        set onerror(fn) { }
+        close() { }
+      };
+      w.__push = (line) => handler && handler({ data: line });
+    },
+  });
+  return new Promise((resolve) => setTimeout(() => resolve(dom), 300));
+}
+
+test('a streamed who line appears in the feed immediately', async () => {
+  const dom = await loadWithStream(RW);
+  const d = dom.window.document, w = dom.window;
+  const before = d.querySelectorAll('#feed li').length;
+  // simuleer een event dat de server net heeft gelogd
+  w.__push(`${Math.floor(Date.now() / 1000)},who,container,radarr,99,geschreven,/mnt/trunk/appdata/radarr/radarr.db`);
+  await new Promise((r) => setTimeout(r, 50));
+  const items = [...d.querySelectorAll('#feed li')];
+  assert.ok(items.length > before, 'feed groeit zonder te wachten op de minuten-fetch');
+  assert.match(text(items[0]), /radarr\.db/);          // nieuwste bovenaan
+  assert.ok(items[0].querySelector('.fb.w'), 'write badge op het gestreamde event');
+  assert.ok(items[0].classList.contains('fresh'), 'nieuw item krijgt een highlight');
   dom.window.close();
 });

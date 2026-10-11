@@ -120,6 +120,35 @@ h3.sub{font-size:13.5px;font-weight:600;margin:18px 0 6px}
 .kind-dot{flex:none;display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:1px;background:var(--idle)}
 .kind-dot.container{background:var(--spin)} .kind-dot.gebruiker{background:var(--up)}
 .cause-bar i.gebruiker{background:var(--up)} .cause-bar i.unraid,.cause-bar i.onbekend{background:var(--idle)}
+/* lezen/schrijven-badge naast het soort gebeurtenis */
+.rw{flex:none;display:inline-block;min-width:1.15rem;text-align:center;font-size:10px;font-weight:700;line-height:1.4;border-radius:4px;padding:0 3px;vertical-align:1px}
+.rw.w{background:var(--up);color:#fff}
+.rw.r{background:var(--idle);color:#fff}
+/* actieve schijven: wie schrijft/leest er, ook zonder spin-up */
+.actdisk{border-top:1px solid var(--line);padding:10px 0 4px}
+.actdisk:first-child{border-top:0;padding-top:0}
+.actdisk .head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.actdisk .head b{font-size:14px}
+.actdisk .head .muted{font-size:12.5px}
+.actcols{display:grid;grid-template-columns:1fr 1fr;gap:4px 26px;margin-top:6px}
+.actcols h4{font-size:12px;font-weight:600;color:var(--muted);margin:8px 0 2px;text-transform:uppercase;letter-spacing:.03em}
+.actcols .cause-row{grid-template-columns:minmax(6rem,1fr) 1.2fr 2rem;padding:2px 0}
+@media (max-width:600px){.actcols{grid-template-columns:1fr}}
+/* live activiteitsfeed onder Actieve schijven */
+.feed{list-style:none;margin:6px 0 0;padding:0;max-height:220px;overflow:auto;font-size:13px}
+.feed li{display:grid;grid-template-columns:auto 1.4rem 1fr auto;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line)}
+.feed li:last-child{border-bottom:0}
+.feed li.fresh{animation:feedIn .6s ease-out}
+@keyframes feedIn{from{background:var(--spin-fill);opacity:0}to{opacity:1}}
+.feed .dot{flex:none;width:9px;height:9px;border-radius:50%;margin:0}
+.feed .dot.w{background:var(--up)} .feed .dot.r{background:var(--spin)}
+.feed .fb{min-width:1.15rem;text-align:center;font-size:10px;font-weight:700;line-height:1.4;border-radius:4px;padding:0 3px;color:#fff}
+.feed .fb.w{background:var(--up)} .feed .fb.r{background:var(--spin)}
+.feed .fp{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.haspath{cursor:help}
+.feed .fs{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:9rem}
+.feed time{color:var(--muted);white-space:nowrap;font-size:12px}
+@media (prefers-reduced-motion:reduce){.feed li.fresh{animation:none}}
 @media (max-width:600px){.files li{grid-template-columns:4.6rem 1fr}.files .ev,.files .by{display:none}}
 [hidden]{display:none!important}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
@@ -163,6 +192,7 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
     </div>
     <div class="controls">
       <div class="seg" role="group" data-i18n-aria="period" id="ranges" hidden>
+        <button data-range="h" data-i18n="rh">Last hour</button>
         <button data-range="1" data-i18n="r1">24 hours</button>
         <button data-range="7" data-i18n="r7">7 days</button>
         <button data-range="30" data-i18n="r30">30 days</button>
@@ -212,6 +242,14 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
       </div>
     </section>
 
+    <section class="panel" style="margin-top:20px">
+      <h2 data-i18n="actTitle">Active drives</h2>
+      <p class="muted" style="margin:0 0 8px;font-size:13px" data-i18n="actNote">Which processes keep the drives busy, even when they do not spin up.</p>
+      <div id="actDrives"></div>
+      <h3 class="sub" data-i18n="feedTitle">Live activity</h3>
+      <ol class="feed" id="feed"></ol>
+    </section>
+
     <section class="panel events-panel">
       <div class="panel-head">
         <h2 data-i18n="eventsTitle">Events</h2>
@@ -236,7 +274,7 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 const $ = id => document.getElementById(id);
 const HOUR = 3600e3, DAY = 24*HOUR;
 const LIVE = 'live';
-const WRITES = /MODIFY|CREATE|DELETE|MOVED_TO/;
+const WRITES = /MODIFY|CREATE|DELETE|MOVED_TO|WRITE/;
 
 let data = null;   // {disks:{dev:[{t,st}]}, names:{dev:name}, act:[{t,disk,ev,path}], source, demo}
 let range = '7';
@@ -249,7 +287,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 const I18N = {
   en: {
     title:'Unraid spin activity', heading:'When do my drives spin', loading:'Loading data', language:'Language',
-    period:'Period', r1:'24 hours', r7:'7 days', r30:'30 days', rall:'All', now:'Now',
+    period:'Period', r1:'24 hours', r7:'7 days', r30:'30 days', rall:'All', rh:'Last hour', now:'Now',
+    prev_h:'Previous hour', next_h:'Next hour',
     prev_1:'Previous day', next_1:'Next day', prev_7:'Previous week', next_7:'Next week',
     prev_30:'Previous month', next_30:'Next month',
     noDataYet:'No data yet', noData:'No data', lanes:'Timeline per disk',
@@ -284,11 +323,16 @@ const I18N = {
     shfsNote:'The file was accessed through /mnt/user (shfs), and the process behind it could not be traced in time. Exclusive shares or a direct pool path in the container show the real source.',
     stoppedNote:'The process had already ended before the dashboard could see who started it. Short-lived commands such as find or ls often show up like this.',
     whoUnknownNote:'No source known: there was no file access around the spin-up, or it could not be linked to a process.',
+    actTitle:'Active drives', actNote:'Which processes keep the drives busy, even when they do not spin up.',
+    actNone:'No file activity in this period.', actNone2:'none', actSummary:'{n} events: {w} writes, {r} reads ({pct}% writes)',
+    actWTitle:'Writes', actRTitle:'Reads', rwW:'write', rwR:'read',
+    feedTitle:'Live activity', agoSec:'{n} s ago', agoMin:'{n} min ago', agoHr:'{n} h ago',
     u_min:'min', u_h:'h', u_d:'d',
   },
   nl: {
     title:'Spin-activiteit Unraid', heading:'Wanneer draaien mijn schijven', loading:'Data laden', language:'Taal',
-    period:'Periode', r1:'24 uur', r7:'7 dagen', r30:'30 dagen', rall:'Alles', now:'Nu',
+    period:'Periode', r1:'24 uur', r7:'7 dagen', r30:'30 dagen', rall:'Alles', rh:'Afgelopen uur', now:'Nu',
+    prev_h:'Vorige uur', next_h:'Volgende uur',
     prev_1:'Vorige dag', next_1:'Volgende dag', prev_7:'Vorige week', next_7:'Volgende week',
     prev_30:'Vorige maand', next_30:'Volgende maand',
     noDataYet:'Nog geen data', noData:'Geen data', lanes:'Tijdlijn per schijf',
@@ -323,11 +367,16 @@ const I18N = {
     shfsNote:'Het bestand werd via /mnt/user (shfs) benaderd en het proces erachter kon niet op tijd worden achterhaald. Exclusive shares of een direct poolpad in de container laten de echte bron zien.',
     stoppedNote:'Het proces was al gestopt voordat het dashboard kon zien wie het startte. Kortlopende commando’s zoals find of ls verschijnen vaak zo.',
     whoUnknownNote:'Geen bron bekend: er was geen bestandstoegang rond de spin-up, of die kon niet aan een proces worden gekoppeld.',
+    actTitle:'Actieve schijven', actNote:'Welke processen houden de schijven bezig, ook als ze niet opspinnen.',
+    actNone:'Geen bestandsactiviteit in deze periode.', actNone2:'geen', actSummary:'{n} gebeurtenissen: {w} schrijven, {r} lezen ({pct}% schrijven)',
+    actWTitle:'Schrijven', actRTitle:'Lezen', rwW:'schrijven', rwR:'lezen',
+    feedTitle:'Live activiteit', agoSec:'{n} s geleden', agoMin:'{n} min geleden', agoHr:'{n} u geleden',
     u_min:'min', u_h:'u', u_d:'d',
   },
   fr: {
     title:'Activité des disques Unraid', heading:'Quand mes disques tournent-ils', loading:'Chargement des données', language:'Langue',
-    period:'Période', r1:'24 heures', r7:'7 jours', r30:'30 jours', rall:'Tout', now:'Maintenant',
+    period:'Période', r1:'24 heures', r7:'7 jours', r30:'30 jours', rall:'Tout', rh:'Dernière heure', now:'Maintenant',
+    prev_h:'Heure précédente', next_h:'Heure suivante',
     prev_1:'Jour précédent', next_1:'Jour suivant', prev_7:'Semaine précédente', next_7:'Semaine suivante',
     prev_30:'Mois précédent', next_30:'Mois suivant',
     noDataYet:'Pas encore de données', noData:'Aucune donnée', lanes:'Chronologie par disque',
@@ -362,11 +411,16 @@ const I18N = {
     shfsNote:'Le fichier a été lu via /mnt/user (shfs) et le processus à l’origine n’a pas pu être identifié à temps. Les partages exclusifs ou un chemin direct vers le pool dans le conteneur révèlent la vraie source.',
     stoppedNote:'Le processus était déjà terminé avant que le tableau de bord puisse voir qui l’avait lancé. Les commandes brèves comme find ou ls apparaissent souvent ainsi.',
     whoUnknownNote:'Aucune source connue : aucun accès aux fichiers autour du démarrage, ou il n’a pas pu être relié à un processus.',
+    actTitle:'Disques actifs', actNote:'Quels processus sollicitent les disques, même sans les démarrer.',
+    actNone:'Aucune activité de fichiers sur cette période.', actNone2:'aucune', actSummary:'{n} événements : {w} écritures, {r} lectures ({pct} % d’écritures)',
+    actWTitle:'Écritures', actRTitle:'Lectures', rwW:'écriture', rwR:'lecture',
+    feedTitle:'Activité en direct', agoSec:'il y a {n} s', agoMin:'il y a {n} min', agoHr:'il y a {n} h',
     u_min:'min', u_h:'h', u_d:'j',
   },
   de: {
     title:'Unraid-Spin-Aktivität', heading:'Wann laufen meine Festplatten', loading:'Daten werden geladen', language:'Sprache',
-    period:'Zeitraum', r1:'24 Stunden', r7:'7 Tage', r30:'30 Tage', rall:'Alles', now:'Jetzt',
+    period:'Zeitraum', r1:'24 Stunden', r7:'7 Tage', r30:'30 Tage', rall:'Alles', rh:'Letzte Stunde', now:'Jetzt',
+    prev_h:'Vorherige Stunde', next_h:'Nächste Stunde',
     prev_1:'Vorheriger Tag', next_1:'Nächster Tag', prev_7:'Vorherige Woche', next_7:'Nächste Woche',
     prev_30:'Vorheriger Monat', next_30:'Nächster Monat',
     noDataYet:'Noch keine Daten', noData:'Keine Daten', lanes:'Zeitleiste pro Festplatte',
@@ -401,11 +455,16 @@ const I18N = {
     shfsNote:'Auf die Datei wurde über /mnt/user (shfs) zugegriffen, und der Prozess dahinter konnte nicht rechtzeitig ermittelt werden. Exklusive Shares oder ein direkter Pool-Pfad im Container zeigen die echte Quelle.',
     stoppedNote:'Der Prozess war bereits beendet, bevor das Dashboard sehen konnte, wer ihn gestartet hat. Kurzlebige Befehle wie find oder ls erscheinen oft so.',
     whoUnknownNote:'Keine Quelle bekannt: Rund um den Spin-up gab es keinen Dateizugriff, oder er ließ sich keinem Prozess zuordnen.',
+    actTitle:'Aktive Festplatten', actNote:'Welche Prozesse die Festplatten beschäftigen, auch ohne dass sie anlaufen.',
+    actNone:'Keine Dateiaktivität in diesem Zeitraum.', actNone2:'keine', actSummary:'{n} Ereignisse: {w} Schreibzugriffe, {r} Lesezugriffe ({pct} % Schreiben)',
+    actWTitle:'Schreiben', actRTitle:'Lesen', rwW:'Schreiben', rwR:'Lesen',
+    feedTitle:'Live-Aktivität', agoSec:'vor {n} s', agoMin:'vor {n} Min.', agoHr:'vor {n} Std.',
     u_min:'Min.', u_h:'Std.', u_d:'T.',
   },
   es: {
     title:'Actividad de discos Unraid', heading:'Cuándo giran mis discos', loading:'Cargando datos', language:'Idioma',
-    period:'Periodo', r1:'24 horas', r7:'7 días', r30:'30 días', rall:'Todo', now:'Ahora',
+    period:'Periodo', r1:'24 horas', r7:'7 días', r30:'30 días', rall:'Todo', rh:'Última hora', now:'Ahora',
+    prev_h:'Hora anterior', next_h:'Hora siguiente',
     prev_1:'Día anterior', next_1:'Día siguiente', prev_7:'Semana anterior', next_7:'Semana siguiente',
     prev_30:'Mes anterior', next_30:'Mes siguiente',
     noDataYet:'Todavía no hay datos', noData:'Sin datos', lanes:'Cronología por disco',
@@ -440,6 +499,10 @@ const I18N = {
     shfsNote:'Se accedió al archivo a través de /mnt/user (shfs) y no se pudo identificar a tiempo el proceso responsable. Los recursos compartidos exclusivos o una ruta directa al pool en el contenedor muestran la fuente real.',
     stoppedNote:'El proceso ya había terminado antes de que el panel pudiera ver quién lo inició. Los comandos breves como find o ls suelen aparecer así.',
     whoUnknownNote:'Sin fuente conocida: no hubo acceso a archivos alrededor del arranque, o no se pudo vincular a ningún proceso.',
+    actTitle:'Discos activos', actNote:'Qué procesos mantienen los discos ocupados, incluso sin arrancarlos.',
+    actNone:'Sin actividad de archivos en este periodo.', actNone2:'ninguna', actSummary:'{n} eventos: {w} escrituras, {r} lecturas ({pct} % escrituras)',
+    actWTitle:'Escrituras', actRTitle:'Lecturas', rwW:'escritura', rwR:'lectura',
+    feedTitle:'Actividad en directo', agoSec:'hace {n} s', agoMin:'hace {n} min', agoHr:'hace {n} h',
     u_min:'min', u_h:'h', u_d:'d',
   },
 };
@@ -541,12 +604,25 @@ function devOrder(a, b){
 function evLabel(ev){
   if (/SMB/.test(ev)) return t('viaShare');
   if (/ISDIR/.test(ev)) return t('dirOpened');
-  if (/MODIFY/.test(ev)) return t('written');
+  if (/MODIFY|WRITE/.test(ev)) return t('written');
   if (/CREATE/.test(ev)) return t('created');
   if (/DELETE/.test(ev)) return t('deleted');
   if (/MOVED_TO/.test(ev)) return t('moved');
   return t('read');
 }
+// Richting van een toegang: 'w' (schrijven), 'r' (lezen) of null (oude data zonder richting).
+// WRITE komt van 'geschreven'; MODIFY/CREATE/DELETE/MOVED_TO zijn ook writes. OPEN/ISDIR zijn lees.
+// Alleen een echt bestand (geen map) krijgt een badge; oude 'geopend' zonder richting ook niet.
+function dirOf(e){
+  if (/SMB/.test(e.ev)) return null;                 // per share samengevoegd, richting niet zinvol
+  if (/WRITE|MODIFY|CREATE|DELETE|MOVED_TO/.test(e.ev)) return 'w';
+  if (/OPEN/.test(e.ev) && !isDir(e)) return 'r';
+  return null;
+}
+const rwBadge = e => {
+  const d = dirOf(e);
+  return d ? `<span class="rw ${d}" title="${esc(t(d === 'w' ? 'rwW' : 'rwR'))}">${d.toUpperCase()}</span>` : '';
+};
 // Groepering: /mnt/pool/Media/Series/x.mkv -> Media/Series, /mnt/pool/ -> "Root van pool"
 const partsOf = path => path.split('/').filter(Boolean);
 const isDir = e => /ISDIR/.test(e.ev);
@@ -623,11 +699,12 @@ function causeHtml(c){
 
 /* ---------- wie: bron van een toegang (who-regels) ---------- */
 const normPath = p => p.replace(/\/+$/, '');
+// sleutel voor de who-index: SMB/NFS-regels gelden voor de hele share
+const whoKey = w => normPath(isShareUser(w) ? (shareRootOf(w.path) || w.path) : w.path);
 function indexWho(list){
   const byPath = new Map();
   for (const w of list){
-    // SMB/NFS: ook oudere regels per bestand vallen onder de share
-    const k = normPath(isShareUser(w) ? (shareRootOf(w.path) || w.path) : w.path);
+    const k = whoKey(w);
     if (!byPath.has(k)) byPath.set(k, []);
     byPath.get(k).push(w);
   }
@@ -670,7 +747,8 @@ function whoBadge(w){
 }
 
 /* ---------- activiteit: inotify (activity-regels, oud) + fanotify (who-regels) samen ---------- */
-const OP_EV = {geopend:'OPEN', aangemaakt:'CREATE', verwijderd:'DELETE', verplaatst:'MOVED_TO'};
+// geschreven: een W-event of een open met schrijfintentie (OW). Oude regels kennen het woord nog niet.
+const OP_EV = {geopend:'OPEN', aangemaakt:'CREATE', verwijderd:'DELETE', verplaatst:'MOVED_TO', geschreven:'WRITE'};
 // who-regels markeren mappen met een slash aan het eind; oudere regels hadden die nog niet,
 // daar geldt: laatste deel zonder punt, of de pool/share-root zelf, is een map.
 function whoIsDir(path){
@@ -710,7 +788,7 @@ function extent(){
 function bounds(){
   const [min, end0] = extent();
   if (range === 'all') return [min, end0];
-  const len = (+range)*DAY, end = end0 - offset*len;
+  const len = range === 'h' ? HOUR : (+range)*DAY, end = end0 - offset*len;
   return [Math.max(min, end - len), end];
 }
 // snap: het segment begint met een gemeten status, niet met een spin-up
@@ -766,11 +844,14 @@ function render(){
 
   // as
   const ticks = []; let step, lab;
-  if (span <= 1.6*DAY){ step = 3*HOUR; lab = t => fmtTime.format(t); }
+  if (span <= 1.6*HOUR){ step = 10*60e3; lab = t => fmtTime.format(t); }   // laatste uur: per 10 min
+  else if (span <= 1.6*DAY){ step = 3*HOUR; lab = t => fmtTime.format(t); }
   else if (span <= 9*DAY){ step = DAY; lab = t => fmtWeekday.format(t); }
   else { step = 7*DAY; lab = t => fmtDate.format(t); }
   const d0 = new Date(a); d0.setMinutes(0,0,0);
-  if (step >= DAY) d0.setHours(0); else d0.setHours(Math.ceil(d0.getHours()/3)*3);
+  if (step >= DAY) d0.setHours(0);
+  else if (step >= HOUR) d0.setHours(Math.ceil(d0.getHours()/3)*3);
+  else d0.setMinutes(Math.ceil(d0.getMinutes()/10)*10);   // 10-min-raster voor het uurvenster
   if (step === 7*DAY) d0.setDate(d0.getDate() + ((8 - d0.getDay()) % 7));
   for (let t = d0.getTime(); t <= b; t += step){
     const d = new Date(t); if (step >= DAY){ d.setHours(0,0,0,0); t = d.getTime(); }
@@ -878,6 +959,9 @@ function render(){
     }
   }
 
+  renderActDrives(a, b, devs);
+  renderFeed();
+
   // filter + tabel
   const sel = $('devFilter'), cur = sel.value || '';
   sel.innerHTML = `<option value="">${esc(t('allDisks'))}</option>` +
@@ -885,6 +969,121 @@ function render(){
   renderEvents(a, b);
   bindTips(a, b);
 }
+
+/* ---------- actieve schijven: wie schrijft/leest er, ook zonder spin-up ---------- */
+// Antwoord op "waarom draait deze schijf steeds": per schijf de top-bronnen en -bestanden,
+// gesplitst naar schrijven en lezen, over het huidige venster. Werkt op data.act (zelfde stroom
+// als de spin-up-oorzaken), dus ook als er helemaal geen spin-ups zijn.
+function actDrives(a, b, devs){
+  if (!hasAct()) return [];
+  const perDev = {};
+  for (const e of data.act){
+    if (e.t < a || e.t > b) continue;
+    const m = devs.find(d => { const mm = matcherFor(d); return !mm.parity && mm.test(e); });
+    if (!m) continue;                            // parity-schrijvingen tellen bij de echte schijf
+    const d = perDev[m] || (perDev[m] = {dev: m, w: 0, r: 0, srcW: {}, srcR: {}, fileW: {}, fileR: {}});
+    const dir = dirOf(e) || (WRITES.test(e.ev) ? 'w' : 'r');
+    const w = whoFor(e), src = w ? whoLabel(w) : '';
+    const file = isDir(e) ? null : '/' + partsOf(e.path).slice(2).join('/');
+    d[dir === 'w' ? 'w' : 'r']++;
+    if (src) (dir === 'w' ? d.srcW : d.srcR)[src] = ((dir === 'w' ? d.srcW : d.srcR)[src] || 0) + 1;
+    if (file) (dir === 'w' ? d.fileW : d.fileR)[file] = ((dir === 'w' ? d.fileW : d.fileR)[file] || 0) + 1;
+  }
+  return Object.values(perDev).filter(d => d.w + d.r > 0)
+    .sort((p, q) => (q.w + q.r) - (p.w + p.r) || devOrder(p.dev, q.dev));
+}
+const topN = (obj, n) => Object.entries(obj).sort((p, q) => q[1] - p[1]).slice(0, n);
+function actRow(label, n, max, cls){
+  const isFile = cls === 'muted';   // bestandsrijen krijgen een hover-overlay met het volledige pad
+  return `<div class="cause-row"><span class="cause-name"><span class="cn${cls ? ' ' + cls : ''}${isFile ? ' haspath' : ''}"${isFile ? '' : ` title="${esc(label)}"`} data-path="${esc(label)}">${esc(label)}</span></span>
+    <span class="cause-bar"><i style="width:${n / max * 100}%"></i></span><b>${n}</b></div>`;
+}
+function renderActDrives(a, b, devs){
+  const el = $('actDrives');
+  const list = actDrives(a, b, devs);
+  if (!list.length){ el.innerHTML = `<p class="muted">${esc(t('actNone'))}</p>`; return; }
+  el.innerHTML = list.map(d => {
+    const tot = d.w + d.r, wpct = Math.round(d.w / tot * 100);
+    const mx = Math.max(1, ...Object.values(d.srcW), ...Object.values(d.srcR),
+                        ...Object.values(d.fileW), ...Object.values(d.fileR));
+    const sec = (title, srcs, files) => `
+      <div><h4>${esc(title)}</h4>
+        ${topN(srcs, 4).map(([k, n]) => actRow(k, n, mx)).join('') || `<p class="muted">${esc(t('actNone2'))}</p>`}
+        ${topN(files, 4).map(([k, n]) => actRow(k, n, mx, 'muted')).join('')}</div>`;
+    return `<div class="actdisk">
+      <div class="head"><b>${esc(nameOf(d.dev))}</b>
+        <span class="muted">${esc(t('actSummary', {n: tot, w: d.w, r: d.r, pct: wpct}))}</span></div>
+      <div class="actcols">
+        ${sec(t('actWTitle'), d.srcW, d.fileW)}
+        ${sec(t('actRTitle'), d.srcR, d.fileR)}
+      </div></div>`;
+  }).join('');
+}
+
+/* ---------- live activiteitsfeed ---------- */
+// Nieuwste bestandsgebeurtenissen bovenaan, met R/W-punt, bestand, bron en hoe lang geleden.
+// Items die er sinds de vorige render bij kwamen krijgen kort een highlight (class 'fresh').
+const FEED_MAX = 25;
+const feedSeen = new Set();                       // 't|ev|path' van al getoonde regels
+const feedKey = e => `${Math.round(e.t / 1000)}|${e.ev}|${e.path}`;
+function feedEvents(){
+  if (!hasAct()) return [];
+  return data.act.filter(e => !isDir(e) || isSmb(e))   // alleen echte bestanden / shares
+    .slice(-FEED_MAX * 4)                              // genoeg marge na dedup
+    .reverse();
+}
+function feedAgo(now, ts){
+  const s = Math.max(0, Math.round((now - ts) / 1000));
+  if (s < 60) return t('agoSec', {n: s});
+  const m = Math.round(s / 60);
+  if (m < 60) return t('agoMin', {n: m});
+  return t('agoHr', {n: Math.round(m / 60)});
+}
+function renderFeed(){
+  const el = $('feed');
+  const now = Date.now();
+  const fresh = [];
+  const lis = [];
+  for (const e of feedEvents()){
+    const k = feedKey(e);
+    const isFresh = !feedSeen.has(k);
+    if (isFresh){ feedSeen.add(k); fresh.push(k); }
+    if (lis.length >= FEED_MAX) continue;
+    const d = dirOf(e) || (WRITES.test(e.ev) ? 'w' : 'r');
+    const w = whoFor(e);
+    // toon het share-relatieve pad (mappen + bestand); het volledige pad zit in de hover-overlay
+    lis.push(`<li${isFresh ? ' class="fresh"' : ''} data-k="${esc(k)}">
+      <span class="dot ${d}"></span>
+      <span class="fb ${d}" title="${esc(t(d === 'w' ? 'rwW' : 'rwR'))}">${d.toUpperCase()}</span>
+      <span class="fp haspath" data-path="${esc(e.path)}">${esc(relPath(e))}</span>
+      <span class="fs">${esc(w ? whoLabel(w) : nameOf(e.disk))}</span>
+      <time>${esc(feedAgo(now, e.t))}</time></li>`);
+  }
+  el.innerHTML = lis.join('') || `<li class="muted">${esc(t('actNone'))}</li>`;
+  // beperk de geheugen van feedSeen tot wat er nu zichtbaar is
+  if (feedSeen.size > 2000){ feedSeen.clear(); for (const e of feedEvents()) feedSeen.add(feedKey(e)); }
+}
+
+/* ---------- volledig pad als overlay bij hover (Actieve schijven + live-feed) ---------- */
+// Afgekapte bestandsrijen (.haspath) tonen bij hover/focus/tik het volledige pad in een overlay.
+// Delegatie op document, zodat het zowel in Actieve schijven als in de live-feed werkt.
+const pathOf = e => e.target.closest && e.target.closest('.haspath');
+function showPath(el){
+  const tip = $('tip');
+  tip.textContent = el.dataset.path;
+  tip.style.maxWidth = 'min(90vw, 560px)';   // paden kunnen lang zijn
+  tip.hidden = false;
+  const r = el.getBoundingClientRect();
+  tip.style.left = Math.max(8, Math.min(r.left, innerWidth - tip.offsetWidth - 8)) + 'px';
+  const below = r.bottom + 8;
+  tip.style.top = (below + tip.offsetHeight > innerHeight - 8 ? r.top - tip.offsetHeight - 8 : below) + 'px';
+}
+const hidePath = () => { const tip = $('tip'); tip.hidden = true; tip.style.maxWidth = ''; };
+document.addEventListener('pointerover', e => { const el = pathOf(e); if (el && e.pointerType !== 'touch') showPath(el); });
+document.addEventListener('pointerout', e => { if (pathOf(e) && e.pointerType !== 'touch') hidePath(); });
+document.addEventListener('focusin', e => { const el = pathOf(e); if (el) showPath(el); });
+document.addEventListener('focusout', e => { if (pathOf(e)) hidePath(); });
+document.addEventListener('click', e => { const el = pathOf(e); if (el) $('tip').hidden ? showPath(el) : hidePath(); });
 
 /* ---------- info-icoontjes met uitleg (hover, focus of tik) ---------- */
 const infoBtn = key => key
@@ -997,7 +1196,7 @@ function sessionRow(files, t0){
   const max = 500;
   const rows = list.slice(0, max).map(e => `<li>
       <time>${fmtSec.format(e.t)}</time>
-      <span class="ev ${WRITES.test(e.ev) ? 'w' : ''}">${esc(evLabel(e.ev))}</span>
+      <span class="ev ${WRITES.test(e.ev) ? 'w' : ''}">${rwBadge(e)} ${esc(evLabel(e.ev))}</span>
       <span class="by">${hasWho() ? whoBadge(whoFor(e)) : esc(e.disk)}</span>
       <span class="path" title="${esc(e.path)}">${esc(relPath(e))}</span></li>`).join('');
   const more = list.length > max ? `<p class="muted">${esc(t('andMore', {n: list.length - max}))}</p>` : '';
@@ -1082,6 +1281,7 @@ function demoLog(){
   const films = ['Noorderlicht (2019)/Noorderlicht.mkv','De Vuurtoren (2021)/De Vuurtoren.mkv','Laag Water (2017)/Laag Water.mkv'];
   const series = ['Polderland/S01/S01E03.mkv','Polderland/S01/S01E04.mkv','Kustwacht/S02/S02E07.mkv','Het Archief/S01/S01E01.mkv'];
   const act = (t, disk, ev, path) => add(t, `activity,${disk},${ev},${path}`);
+  const who = (t, kind, name, pid, op, path) => add(t, `who,${kind},${name},${pid},${op},${path}`);
   for (const [dev, [name, busy]] of Object.entries(disks)){
     add(start, `disk,${dev},${name}`);
     add(start, `state,${dev},standby`);
@@ -1116,7 +1316,34 @@ function demoLog(){
         else if (r < .9) act(at, disk, 'OPEN', `/mnt/${disk}/Backups/homey/${pick(['backup-0921.tar','backup-0922.tar'])}`);
       }
     }
+    // Schrijfactiviteit die de schijf wakker houdt zonder spin-up: een container die logs en
+    // een database bijwerkt (W-events en opens met schrijfintentie). Zo is de Actieve-schijven-
+    // weergave ook in het voorbeeld gevuld.
+    if (name !== 'parity'){
+      const w1 = pick(['appdata/plex/Logs/Plex Media Server.log','appdata/sonarr/sonarr.db','appdata/homeassistant/home-assistant_v2.db']);
+      const container = w1.includes('plex') ? 'plex' : w1.includes('sonarr') ? 'sonarr' : 'homeassistant';
+      let w = start + 2*HOUR;
+      while (w < end){
+        who(w, 'container', container, 40 + name.length, 'geschreven', `/mnt/${name}/${w1}`);
+        w += (3 + rnd()*5) * HOUR;
+      }
+      // en wat leesactiviteit van een andere bron
+      let rr = start + 5*HOUR;
+      while (rr < end){
+        who(rr, 'gebruiker', 'SMB-share', 60, 'geopend', `/mnt/${name}/Documenten/`);
+        rr += (6 + rnd()*8) * HOUR;
+      }
+    }
   }
+  // Recente activiteit (laatste uur) zodat de live-feed in het voorbeeld direct gevuld is
+  const recent = [
+    [4,  'container', 'sonarr', 41, 'geschreven', '/mnt/disk1/appdata/sonarr/sonarr.db'],
+    [11, 'container', 'plex', 42, 'geschreven', '/mnt/disk1/appdata/plex/Logs/Plex Media Server.log'],
+    [23, 'gebruiker', 'SMB-share', 60, 'geopend', '/mnt/disk2/Documenten/'],
+    [31, 'container', 'bazarr', 43, 'geopend', '/mnt/disk1/Media/Series/Polderland/S01/S01E03.mkv'],
+    [47, 'container', 'homeassistant', 44, 'geschreven', '/mnt/disk2/appdata/homeassistant/home-assistant_v2.db'],
+  ];
+  for (const [mins, kind, nm, pid, op, path] of recent) who(end - mins * 60e3, kind, nm, pid, op, path);
   return lines.sort((x,y) => x.t - y.t).map(x => x.l).join('\n');
 }
 
@@ -1154,7 +1381,34 @@ async function tick(){
   if (new URLSearchParams(location.search).has('demo')){ load(demoLog(), 'voorbeeld', true); return; }
   await tick();
   setInterval(() => { if (!document.hidden) tick(); }, 60000);
+  // de feed toont relatieve tijden ("2 min geleden"); ververs die vaker dan de data zelf
+  setInterval(() => { if (!document.hidden && data) renderFeed(); }, 30000);
+  streamLive();
 })();
+
+/* ---------- live stream (Server-Sent Events) ---------- */
+// De server stuurt elke nieuwe who-regel direct; zo stroomt de feed in plaats van per minuut.
+// De minuten-fetch blijft de bron van waarheid; de stream is een versneller daar bovenop.
+function streamLive(){
+  if (!('EventSource' in window)) return;
+  const es = new EventSource('data/stream');
+  es.onmessage = ev => { if (data && data.source === LIVE) ingestWho(ev.data); };
+  es.onerror = () => { /* EventSource herverbindt zelf */ };
+}
+// Eén who-regel live verwerken: toevoegen aan de who-index en de activiteitenstroom,
+// daarna alleen de feed opnieuw tekenen (de rest volgt bij de minuten-fetch).
+function ingestWho(line){
+  const {who} = parseText(line);
+  if (!who.length) return;
+  const w0 = who[0], k = whoKey(w0);
+  const list = data.who.get(k) || [];
+  list.push(w0);
+  data.who.set(k, list);
+  const add = mergeActivity([], [w0]);            // zelfde omzetting als bij het laden
+  data.act = data.act.concat(add).sort((p, q) => p.t - q.t);
+  renderFeed();
+  renderActDrives(...bounds(), Object.keys(data.disks).sort(devOrder));
+}
 })();
 </script>
 </body>

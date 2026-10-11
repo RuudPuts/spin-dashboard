@@ -10,7 +10,6 @@ Open work, roughly by priority. Move finished items to `completed.md`.
 - [ ] Support thread on the Unraid forum and submission to Community Applications
 
 ## Features
-- [ ] Detect writes to existing files (fatrace `W`), deduplicated, so parity spin-ups are easier to explain
 - [ ] Test SAS drives and HBAs; validate the `smartctl -n standby` fallback
 - [ ] Optional: notifications (Unraid notification or webhook) for spin-ups outside a configured window
 - [ ] Optional: set an "expected night window" per pool and highlight deviations

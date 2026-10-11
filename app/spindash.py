@@ -62,6 +62,9 @@ DAY_FILE = re.compile(r"^\d{4}-\d{2}-\d{2}\.csv(?:\.tmp)?$")
 TYPES = ("disk", "state", "spin", "who", "activity")     # volgorde binnen dezelfde seconde
 
 write_lock = threading.Lock()
+# live-verbindingen (Server-Sent Events): elke write_who zet de regel in alle wachtende queues
+streams = []
+streams_lock = threading.Lock()
 
 
 def log(*a):
@@ -256,7 +259,9 @@ def poller():
 # Watcher: wie opent wat (fatrace)
 # =====================================================================================
 LINE = re.compile(r"^(\d+)\.\d+ (.*)\((\d+)\): ([RWOCD+<>]+)\s+(/.*?)(?: exe=.*)?$")
-OPS = [("D", "verwijderd"), ("+", "aangemaakt"), ("<", "verplaatst"), (">", "verplaatst"), ("O", "geopend")]
+# W (schrijven) staat vóór O (openen): een open met schrijfintentie (OW/ORW) telt als schrijven
+OPS = [("D", "verwijderd"), ("+", "aangemaakt"), ("<", "verplaatst"), (">", "verplaatst"),
+       ("W", "geschreven"), ("O", "geopend")]
 SHELLS = {"sshd": "ssh", "sshd-session": "ssh", "ttyd": "webterminal", "login": "console",
           "agetty": "console", "tmux: server": "tmux", "screen": "screen"}
 
@@ -439,7 +444,8 @@ def write_who(ts, kind, name, pid, op, path, now=None):
     if kind == "gebruiker" and name in ("SMB-share", "NFS-share"):
         path = share_root(path)              # één regel per share
     now = time.time() if now is None else now
-    k = (path, kind, name)
+    # op zit in de sleutel: een lees en een schrijf van hetzelfde pad tellen elk één keer
+    k = (path, kind, name, op)
     with write_lock:
         if now - recent.get(k, 0) < DEDUP_S:
             return
@@ -447,8 +453,21 @@ def write_who(ts, kind, name, pid, op, path, now=None):
         if len(recent) > 50_000:
             for kk in [kk for kk, t in recent.items() if now - t > DEDUP_S]:
                 del recent[kk]
-    append_lines([f"{ts},who,{kind},{name.replace(',', ' ')},{pid},{op},{path}"])
+    line = f"{ts},who,{kind},{name.replace(',', ' ')},{pid},{op},{path}"
+    append_lines([line])
     stats["written"] += 1
+    broadcast(line)
+
+
+def broadcast(line):
+    """Leg een who-regel op alle open SSE-verbindingen. Volle of dichte verbindingen
+    worden overgeslagen; de periodieke CSV-verversing blijft de bron van waarheid."""
+    with streams_lock:
+        for q in list(streams):
+            try:
+                q.put_nowait(line)
+            except queue.Full:
+                pass
 
 
 def resolve_shfs_later(ts, pid, op, path):
@@ -502,7 +521,7 @@ def consumer():
 
 def start_fatrace(mp):
     try:
-        p = subprocess.Popen(["fatrace", "-c", "-tt", "-f", "O+D<"], cwd=mp,
+        p = subprocess.Popen(["fatrace", "-c", "-tt", "-f", "O+WD<"], cwd=mp,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              text=True, errors="replace", bufsize=1)
     except OSError as e:
@@ -720,7 +739,8 @@ def migrate():
 class Handler(http.server.SimpleHTTPRequestHandler):
     """/ → dashboard, /data/days.json → lijst van dagen, /data/days/YYYY-MM-DD.csv → dagbestand."""
     def do_GET(self):
-        if self.path.split("?", 1)[0] == "/data/days.json":
+        clean = self.path.split("?", 1)[0]
+        if clean == "/data/days.json":
             body = json.dumps({"days": list_days()}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -728,7 +748,38 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        if clean == "/data/stream":
+            self.stream_events()
+            return
         super().do_GET()
+
+    def stream_events(self):
+        """Server-Sent Events: stuur elke nieuwe who-regel direct naar de browser,
+        zodat de live-feed stroomt in plaats van elke minuut te wachten op de CSV."""
+        q = queue.Queue(maxsize=500)
+        with streams_lock:
+            streams.append(q)
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("X-Accel-Buffering", "no")   # geen proxy-buffering
+            self.end_headers()
+            self.wfile.write(b": ok\n\n")
+            self.wfile.flush()
+            while True:
+                try:
+                    line = q.get(timeout=30)
+                    self.wfile.write(f"data: {line}\n\n".encode())
+                except queue.Empty:
+                    self.wfile.write(b": ping\n\n")        # houd de verbinding levend
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
+        finally:
+            with streams_lock:
+                if q in streams:
+                    streams.remove(q)
 
     def translate_path(self, path):
         clean = path.split("?", 1)[0].split("#", 1)[0]

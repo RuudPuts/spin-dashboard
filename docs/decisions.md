@@ -69,3 +69,21 @@ lives in one file with a type per line: cleanup means deleting a file, a day can
 exported on its own, and the browser fetches older days conditionally (304). Every day starts with
 `disk` and `state` lines so it can be read without the previous day; `state` is explicitly not a
 spin-up, so a restart or the change of day does not produce false spin-ups.
+
+## Reads vs. writes
+To explain why a drive never goes idle we distinguish reads from writes. `fatrace` is started with
+`O+WD<` so that, besides opens, it also reports `W`: a write to a file that was already open. Without
+that, a container that opens a log file or database once and then writes to it for hours would only
+show a single `geopend` line, while those writes are exactly what keeps a drive spinning. An open
+with write intent (fatrace shows `OW`/`ORW`) counts as a write too. In the day file both become the
+action `geschreven`; a read-only open stays `geopend`. Older lines only knew `geopend`, so they
+carry no direction and the frontend shows no read/write badge for them — the format is extended, not
+migrated.
+
+A `W` event fires on every write burst, so it is deduplicated per path + source + action per
+`DEDUP_SECONDS`, exactly like opens; otherwise a busy share would flood the day file. Adding the
+action to the dedup key means a read and a write of the same file each survive once per window.
+
+The frontend's *Active drives* panel answers "why is this drive never idle" directly from the same
+activity stream: per drive the top write and read sources and files, even when there were no
+spin-ups at all in the period.

@@ -2,6 +2,24 @@
 
 Newest first.
 
+## 2026-10-11: live feed and browsing
+- Live activity feed under Active drives: newest file events first, with R/W marker, source and a
+  relative time; items new since the last refresh get a short highlight
+- The feed **streams**: a Server-Sent Events endpoint (`/data/stream`) pushes every `who` line the
+  moment it is logged, so the feed updates instantly instead of waiting for the minute fetch
+- "Last hour" period toggle with 10-minute axis ticks
+- Hovering a truncated file path in Active drives shows the full path in an overlay
+
+## 2026-10-11: reads vs. writes and active drives
+- `fatrace` filter `O+W+D<`: writes to already-open files are now logged, not just opens
+- Read vs. write direction per access: `geschreven` (a `W` event or an open with write intent) next
+  to `geopend` (read-only); the frontend shows an R/W badge per file and per event
+- Dedup key extended with the action, so a read and a write of the same file each survive per window
+- New "Active drives" panel: per drive the top write/read sources and files over the period, also
+  when there were no spin-ups — answers "why is this drive never idle"
+- Sample data includes write activity so the panel is visible in demo mode
+- Format extended, not migrated: old `geopend` lines carry no direction and still render
+
 ## 2026-10-09: one file per day
 - All data in `days/YYYY-MM-DD.csv` with lines `epoch,type,...` (disk, state, spin, who, activity)
 - `state` lines at the start of each day and after a restart, so every day file can be read on its own; no false spin-ups

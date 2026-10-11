@@ -35,10 +35,20 @@ been removed.
 | kind | `container`, `unraid`, `gebruiker` (user), `onbekend` (unknown) |
 | name | Container name, `SMB-share`, `shell (ssh)`, `mover`, `webGUI`, process name, … (commas replaced by spaces). Ends in ` (al gestopt)` ("already stopped") when the process was gone. |
 | pid | PID (host namespace) |
-| action | `geopend` (opened), `aangemaakt` (created), `verwijderd` (deleted), `verplaatst` (moved) |
+| action | `geopend` (opened for reading), `geschreven` (written, or opened with write intent), `aangemaakt` (created), `verwijderd` (deleted), `verplaatst` (moved) |
 | path | **Folders end in `/`.** May contain commas; always the last field. |
 
 These values are Dutch and part of the format; the frontend translates them when shown.
+
+**Read vs. write.** The action carries the direction. `geopend` is a read-only open; `geschreven`
+comes from a fatrace `W` event (a write to an already-open file) or from an open whose flags
+include write intent (fatrace shows `OW`/`ORW`). Create, delete and move are also writes. Older
+day files only know `geopend` for every open, so those lines carry no direction: the frontend then
+shows no read/write badge. No migration is needed — old and new lines live side by side.
+
+**Deduplication.** The same path + kind + name + action is logged at most once per
+`DEDUP_SECONDS` (600). Because the action is part of the key, a read and a write of the same file
+within that window each get their own line.
 
 ## Web
 
@@ -46,6 +56,7 @@ These values are Dutch and part of the format; the frontend translates them when
 |---|---|
 | `/data/days.json` | `{"days": ["2026-10-08", "2026-10-09"]}`, ascending |
 | `/data/days/YYYY-MM-DD.csv` | One day file. Any other path under `/data/` returns 404. |
+| `/data/stream` | Server-Sent Events. Every `who` line is pushed the moment it is logged (`data: <line>`), with a `: ping` every 30 s to keep the connection alive. Powers the live feed; the day files stay the source of truth. |
 
 ## Retention
 

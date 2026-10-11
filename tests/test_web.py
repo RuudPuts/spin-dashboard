@@ -52,3 +52,43 @@ def test_only_day_files_from_data_dir(server):
     assert get(server + "/data/days/notes.txt")[0] == 404
     assert get(server + "/data/days/../../secret.txt")[0] == 404
     assert get(server + "/data/spin.csv")[0] == 404
+
+
+def test_broadcast_fills_stream_queues(sd):
+    import queue
+    q1, q2 = queue.Queue(), queue.Queue()
+    sd.streams.extend([q1, q2])
+    try:
+        sd.broadcast("1791496800,who,container,plex,1,geopend,/mnt/trunk/a.mkv")
+    finally:
+        sd.streams.clear()
+    assert q1.get_nowait() == "1791496800,who,container,plex,1,geopend,/mnt/trunk/a.mkv"
+    assert q2.get_nowait() == "1791496800,who,container,plex,1,geopend,/mnt/trunk/a.mkv"
+
+
+def test_broadcast_skips_full_queue(sd):
+    import queue
+    full = queue.Queue(maxsize=1)
+    full.put("x")
+    sd.streams.append(full)
+    try:
+        sd.broadcast("1791496800,who,container,plex,1,geopend,/mnt/trunk/a.mkv")   # mag niet blokkeren
+    finally:
+        sd.streams.clear()
+    assert full.get_nowait() == "x"     # alleen het oude item; de broadcast is geskipt
+
+
+def test_stream_endpoint_delivers_broadcast(sd, server):
+    import http.client
+    conn = http.client.HTTPConnection("127.0.0.1", int(server.rsplit(":", 1)[1]), timeout=5)
+    conn.request("GET", "/data/stream")
+    resp = conn.getresponse()
+    assert resp.status == 200
+    assert resp.headers["Content-Type"] == "text/event-stream"
+    line = resp.readline()              # ": ok" begroeting
+    assert line.startswith(b":")
+    assert len(sd.streams) == 1
+    sd.broadcast("1791496800,who,container,plex,1,geopend,/mnt/trunk/a.mkv")
+    body = resp.readline() + resp.readline()
+    assert b"data: 1791496800,who,container,plex,1,geopend,/mnt/trunk/a.mkv" in body
+    conn.close()
