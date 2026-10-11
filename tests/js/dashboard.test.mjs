@@ -81,9 +81,9 @@ test('session list collapses SMB access to one entry per share', async () => {
   d.querySelector('tr.has-sess .sess').click();
   const files = [...d.querySelectorAll('.files li')].map(text);
   assert.deepEqual(files.map((f) => f.replace(/^\S+ /, '')), [
-    'gelezen bazarr /Media/series/a.mkv',
+    'R gelezen bazarr /Media/series/a.mkv',
     'via share SMB-share /Media/',
-    'gelezen plex /Media/series/c.mkv',
+    'R gelezen plex /Media/series/c.mkv',
   ]);
   dom.window.close();
 });
@@ -273,5 +273,70 @@ test('day files are combined, and a state line is not a spin-up', async () => {
   assert.equal(r.filter((x) => /Opgespind/.test(x)).length, 1, r.join('\n'));   // alleen die van gisteren
   assert.equal(r.filter((x) => /Naar standby/.test(x)).length, 2);
   assert.match(text(d.querySelector('.lane-stats')), /^1 spin-ups/);
+  dom.window.close();
+});
+
+// ---------- lezen/schrijven en actieve schijven ----------
+const RW = served({ d1: [
+  `${ep(300)},disk,sdd,trunk`,
+  `${ep(300)},state,sdd,active`,                                       // draait al, geen spin-up
+  `${ep(200)},who,container,plex,10,geschreven,/mnt/trunk/appdata/plex/Logs/server.log`,
+  `${ep(190)},who,container,plex,10,geschreven,/mnt/trunk/appdata/plex/Logs/server.log`,
+  `${ep(180)},who,container,sonarr,11,geschreven,/mnt/trunk/appdata/sonarr/sonarr.db`,
+  `${ep(120)},who,container,bazarr,12,geopend,/mnt/trunk/Media/series/a.mkv`,
+] });
+
+test('a write event is grouped under the drive in the active-drives view', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document;
+  const ad = d.getElementById('actDrives');
+  assert.ok(ad.querySelector('.actdisk'), text(ad));
+  assert.match(text(ad), /plex/);
+  assert.match(text(ad), /sonarr/);
+  dom.window.close();
+});
+
+test('a write event in a session list carries a W badge, a read an R badge', async () => {
+  const SES = served({ d1: [
+    `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,standby`,
+    `${ep(121)},who,container,plex,10,geschreven,/mnt/trunk/appdata/plex/Logs/server.log`,
+    `${ep(120.5)},who,container,bazarr,2,geopend,/mnt/trunk/Media/series/a.mkv`,
+    `${ep(120)},spin,sdd,active`, `${ep(60)},spin,sdd,standby`,
+  ] });
+  const dom = await load(SES);
+  const d = dom.window.document;
+  d.querySelector('tr.has-sess .sess').click();
+  const badges = [...d.querySelectorAll('.files .ev .rw')].map((b) => b.textContent);
+  assert.ok(badges.includes('W'), badges.join(','));   // geschreven -> W
+  assert.ok(badges.includes('R'), badges.join(','));   // geopend op bestand -> R
+  dom.window.close();
+});
+
+test('active drives ranks the top writer and shows write counts', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document;
+  const ad = text(d.getElementById('actDrives'));
+  assert.match(ad, /trunk/);
+  // plex schreef 2x, sonarr 1x, bazarr las 1x -> schrijven staat boven lezen
+  assert.match(ad, /Schrijven/);
+  assert.match(ad, /Lezen/);
+  // volgorde binnen Schrijven: plex (2) voor sonarr (1)
+  const wcol = d.querySelector('.actdisk .actcols > div');
+  const names = [...wcol.querySelectorAll('.cn')].map(text);
+  assert.ok(names.indexOf('plex') < names.indexOf('sonarr'), names.join(','));
+  dom.window.close();
+});
+
+test('legacy who line without direction still renders without a badge', async () => {
+  // oud 'geopend'-record van een bestand: geen R/W-badge (richting onbekend), geen crash
+  const LEG = served({ d1: [
+    `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,standby`,
+    `${ep(121)},who,container,bazarr,2,geopend,/mnt/trunk/Media/series/a.mkv`,
+    `${ep(120)},spin,sdd,active`, `${ep(60)},spin,sdd,standby`,
+  ] });
+  const dom = await load(LEG);
+  const d = dom.window.document;
+  const up = rows(d).find((x) => /Opgespind/.test(x));
+  assert.match(up, /gelezen: a\.mkv/);            // oude regel toont als 'gelezen', geen richting-badge
   dom.window.close();
 });

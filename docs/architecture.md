@@ -29,7 +29,7 @@ lines, plus the disk names as `disk` lines.
 
 **Watcher.** Determines the mounts to watch: `/mnt/<name>` for array disks (`disk1`) and
 pools (pool member `trunk2` belongs to `/mnt/trunk`), plus every mount below them (ZFS datasets).
-Each mount gets a `fatrace -c` with filter `O+D<` (open, create, delete, move). `fatrace` uses
+Each mount gets a `fatrace -c` with filter `O+WD<` (open, write, create, delete, move). `fatrace` uses
 `FAN_MARK_FILESYSTEM`, so access from other mount namespaces (the host, other containers) is
 seen as well. Every minute it checks whether the mounts changed or a `fatrace` stopped.
 
@@ -42,8 +42,9 @@ SMB/NFS → shell (sshd, ttyd, login) → shfs → btrfs → mover → cron → 
 stopped in the meantime get the same source; "stopped" itself is not remembered. See
 *Ignoring Cache Dirs* in `decisions.md`.
 
-**Deduplication.** The same path + kind + name only once per `DEDUP_SECONDS` (600). SMB/NFS is
-summarised into one line per share.
+**Deduplication.** The same path + kind + name + action only once per `DEDUP_SECONDS` (600).
+SMB/NFS is summarised into one line per share. The action is part of the key so that a read and a
+write of the same file within the window each appear once.
 
 **Storage.** All lines go to the day file of their own timestamp (`append_lines`). Old day files
 are removed as a whole. On start, `migrate()` converts files from older versions; see

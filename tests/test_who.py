@@ -12,6 +12,15 @@ def test_line_regex():
     assert spindash.LINE.match("1790680753.1 bash(1): O   (deleted)") is None
 
 
+def test_line_regex_write_flags():
+    m = spindash.LINE.match("1790680753.123456 plex(4567): W   /mnt/trunk/Media/a.mkv")
+    assert m.groups() == ("1790680753", "plex", "4567", "W", "/mnt/trunk/Media/a.mkv")
+    m = spindash.LINE.match("1790680753.123456 plex(4567): OW  /mnt/trunk/Media/a.mkv")
+    assert m.groups() == ("1790680753", "plex", "4567", "OW", "/mnt/trunk/Media/a.mkv")
+    m = spindash.LINE.match("1790680753.123456 plex(4567): ORW /mnt/trunk/Media/a.mkv")
+    assert m.groups() == ("1790680753", "plex", "4567", "ORW", "/mnt/trunk/Media/a.mkv")
+
+
 def test_container_id_variants(sd):
     for cg in (f"0::/docker/{HEX}\n", f"0::/../{HEX}\n", f"0::/system.slice/docker-{HEX}.scope\n"):
         make_proc(sd._tmp, 10, "x", cgroup=cg)
@@ -160,6 +169,35 @@ def test_write_who_dedup_and_smb_collapse(sd):
         "102,who,container,plex,1,geopend,/mnt/trunk/Media/a.mkv",
         "103,who,gebruiker,SMB-share,2,geopend,/mnt/trunk/Media/",
         "105,who,container,a b,3,geopend,/mnt/trunk/z",
+    ]
+
+
+def test_write_who_dedup_keeps_read_and_write_apart(sd):
+    """Lezen en schrijven van hetzelfde pad binnen 10 minuten tellen elk één keer."""
+    sd.write_who("100", "container", "plex", "1", "geopend", "/mnt/trunk/Media/a.mkv", now=1000)
+    sd.write_who("101", "container", "plex", "1", "geschreven", "/mnt/trunk/Media/a.mkv", now=1100)
+    sd.write_who("102", "container", "plex", "1", "geschreven", "/mnt/trunk/Media/a.mkv", now=1200)  # zelfde op: gedempt
+    lines = open(sd.day_path("1970-01-01")).read().splitlines()
+    assert lines == [
+        "100,who,container,plex,1,geopend,/mnt/trunk/Media/a.mkv",
+        "101,who,container,plex,1,geschreven,/mnt/trunk/Media/a.mkv",
+    ]
+
+
+def test_handle_write_events(sd, monkeypatch):
+    """Een W-event en een open met schrijfintentie (OW) worden allebei 'geschreven'."""
+    calls = []
+    monkeypatch.setattr(sd, "write_who", lambda *a: calls.append(a))
+    monkeypatch.setattr(sd, "classify", lambda pid, comm: ("container", comm))
+    sd.handle("1.0 plex(5): W   /mnt/trunk/Media/a.mkv\n")
+    sd.handle("1.0 plex(5): OW  /mnt/trunk/Media/b.mkv\n")
+    sd.handle("1.0 plex(5): ORW /mnt/trunk/Media/c.mkv\n")
+    sd.handle("1.0 plex(5): O   /mnt/trunk/Media/d.mkv\n")   # alleen lezen
+    assert calls == [
+        ("1", "container", "plex", "5", "geschreven", "/mnt/trunk/Media/a.mkv"),
+        ("1", "container", "plex", "5", "geschreven", "/mnt/trunk/Media/b.mkv"),
+        ("1", "container", "plex", "5", "geschreven", "/mnt/trunk/Media/c.mkv"),
+        ("1", "container", "plex", "5", "geopend", "/mnt/trunk/Media/d.mkv"),
     ]
 
 

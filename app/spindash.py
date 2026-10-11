@@ -256,7 +256,9 @@ def poller():
 # Watcher: wie opent wat (fatrace)
 # =====================================================================================
 LINE = re.compile(r"^(\d+)\.\d+ (.*)\((\d+)\): ([RWOCD+<>]+)\s+(/.*?)(?: exe=.*)?$")
-OPS = [("D", "verwijderd"), ("+", "aangemaakt"), ("<", "verplaatst"), (">", "verplaatst"), ("O", "geopend")]
+# W (schrijven) staat vóór O (openen): een open met schrijfintentie (OW/ORW) telt als schrijven
+OPS = [("D", "verwijderd"), ("+", "aangemaakt"), ("<", "verplaatst"), (">", "verplaatst"),
+       ("W", "geschreven"), ("O", "geopend")]
 SHELLS = {"sshd": "ssh", "sshd-session": "ssh", "ttyd": "webterminal", "login": "console",
           "agetty": "console", "tmux: server": "tmux", "screen": "screen"}
 
@@ -439,7 +441,8 @@ def write_who(ts, kind, name, pid, op, path, now=None):
     if kind == "gebruiker" and name in ("SMB-share", "NFS-share"):
         path = share_root(path)              # één regel per share
     now = time.time() if now is None else now
-    k = (path, kind, name)
+    # op zit in de sleutel: een lees en een schrijf van hetzelfde pad tellen elk één keer
+    k = (path, kind, name, op)
     with write_lock:
         if now - recent.get(k, 0) < DEDUP_S:
             return
@@ -502,7 +505,7 @@ def consumer():
 
 def start_fatrace(mp):
     try:
-        p = subprocess.Popen(["fatrace", "-c", "-tt", "-f", "O+D<"], cwd=mp,
+        p = subprocess.Popen(["fatrace", "-c", "-tt", "-f", "O+WD<"], cwd=mp,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                              text=True, errors="replace", bufsize=1)
     except OSError as e:
