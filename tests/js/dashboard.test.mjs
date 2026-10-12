@@ -439,3 +439,38 @@ test('a streamed who line appears in the feed immediately', async () => {
   assert.ok(items[0].classList.contains('fresh'), 'nieuw item krijgt een highlight');
   dom.window.close();
 });
+
+// ---------- laadpaneel ----------
+test('first load shows a loading panel with progress, then the dashboard', async () => {
+  let release;
+  const slow = new Promise((r) => { release = r; });
+  const files = served({
+    '2026-10-08': [`${ep(30 * 60)},disk,sdd,trunk`, `${ep(30 * 60)},state,sdd,standby`],
+    '2026-10-09': [],
+  });
+  files['days.json'] = JSON.stringify({ days: ['2026-10-08', '2026-10-09'], bytes: 2 * 1048576 });
+  const day2 = [`${ep(120)},spin,sdd,active`, `${ep(60)},spin,sdd,standby`].join('\n') + '\n';
+  files['days/2026-10-09.csv'] = slow.then(() => day2);              // tweede dag komt later binnen
+  const dom = await load(files);
+  const d = dom.window.document;
+  const bar = d.getElementById('loaderBar');
+  assert.equal(d.getElementById('loader').hidden, false);
+  assert.equal(d.getElementById('dash').hidden, true);
+  assert.match(d.getElementById('loaderText').textContent, /^1 van 2 dagen geladen · 0,0 van 2,0 MB$/);
+  assert.equal(bar.classList.contains('indeterminate'), false);
+  release();
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(d.getElementById('loader').hidden, true);
+  assert.equal(d.getElementById('dash').hidden, false);
+  assert.equal(bar.getAttribute('aria-valuenow'), '96');                 // laatste stap: opbouwen
+  assert.ok(rows(d).some((x) => /Opgespind/.test(x)));
+  dom.window.close();
+});
+
+test('no data hides the loading panel and shows the status message', async () => {
+  const dom = await load({ 'days.json': null });
+  const d = dom.window.document;
+  assert.equal(d.getElementById('loader').hidden, true);
+  assert.equal(d.getElementById('status').hidden, false);
+  dom.window.close();
+});

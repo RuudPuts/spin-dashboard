@@ -6,7 +6,9 @@
 <title>Unraid spin activity</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- niet-blokkerend: het laadpaneel verschijnt meteen, het lettertype volgt zodra het binnen is -->
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 <style>
 :root{
   --bg:#E9EDF1; --panel:#F7F9FB; --ink:#17212B; --muted:#5B6875; --line:#CBD3DB;
@@ -52,6 +54,22 @@ button,select{font:inherit;color:inherit}
 
 /* status */
 .status{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:24px;max-width:640px}
+
+/* laadpaneel */
+.loader{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:24px;max-width:640px}
+.loader-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.loader-head h2{margin:0}
+.spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--spin);flex:none}
+.bar{height:8px;border-radius:4px;background:var(--bg);overflow:hidden;position:relative}
+.bar i{display:block;height:100%;width:0;background:var(--spin);border-radius:4px;transition:width .25s ease-out}
+.bar.indeterminate i{width:30%;position:absolute;left:-30%}
+.loader p{margin:10px 0 0;font-size:13.5px}
+@media (prefers-reduced-motion:no-preference){
+  .spinner{animation:spin .8s linear infinite}
+  .bar.indeterminate i{animation:slide 1.2s ease-in-out infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes slide{to{left:100%}}
+}
 .status h2{margin-bottom:6px}
 .status p{margin:0}
 .status code{font-size:13px}
@@ -213,6 +231,12 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
     </div>
   </header>
 
+  <section class="loader" id="loader" hidden>
+    <div class="loader-head"><span class="spinner" aria-hidden="true"></span><h2 data-i18n="loadingTitle">Loading data</h2></div>
+    <div class="bar indeterminate" id="loaderBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" data-i18n-aria="loadingTitle"><i></i></div>
+    <p class="muted" id="loaderText" aria-live="polite"></p>
+  </section>
+
   <section class="status" id="status" hidden>
     <h2 id="statusTitle" data-i18n="noDataYet">No data yet</h2>
     <p class="muted" id="statusText"></p>
@@ -319,6 +343,7 @@ const I18N = {
     statusMissing:'No measurement yet. The first drive check runs within a minute after the container starts.',
     statusEmpty:'No spinning drives found yet. Check the container log to see whether /dev and /var/local/emhttp are reachable.',
     retry:'The page retries every minute.',
+    loadingTitle:'Loading data', loadingIndex:'Fetching the list of days…', loadingDownload:'{done} of {total} days loaded · {mb} of {totalMb} MB', loadingProcess:'Processing the data…', loadingRender:'Building the dashboard…',
     info:'More information',
     shfsNote:'The file was accessed through /mnt/user (shfs), and the process behind it could not be traced in time. Exclusive shares or a direct pool path in the container show the real source.',
     stoppedNote:'The process had already ended before the dashboard could see who started it. Short-lived commands such as find or ls often show up like this.',
@@ -363,6 +388,7 @@ const I18N = {
     statusMissing:'Nog geen meting. De eerste peiling van de schijven volgt binnen een minuut na het starten van de container.',
     statusEmpty:'Er zijn nog geen draaiende schijven gevonden. Controleer in de containerlog of /dev en /var/local/emhttp bereikbaar zijn.',
     retry:'De pagina probeert het elke minuut opnieuw.',
+    loadingTitle:'Data laden', loadingIndex:'Lijst met dagen ophalen…', loadingDownload:'{done} van {total} dagen geladen · {mb} van {totalMb} MB', loadingProcess:'Gegevens verwerken…', loadingRender:'Dashboard opbouwen…',
     info:'Meer informatie',
     shfsNote:'Het bestand werd via /mnt/user (shfs) benaderd en het proces erachter kon niet op tijd worden achterhaald. Exclusive shares of een direct poolpad in de container laten de echte bron zien.',
     stoppedNote:'Het proces was al gestopt voordat het dashboard kon zien wie het startte. Kortlopende commando’s zoals find of ls verschijnen vaak zo.',
@@ -407,6 +433,7 @@ const I18N = {
     statusMissing:'Pas encore de mesure. La première vérification des disques a lieu dans la minute qui suit le démarrage du conteneur.',
     statusEmpty:'Aucun disque en rotation trouvé pour l’instant. Vérifiez dans le journal du conteneur que /dev et /var/local/emhttp sont accessibles.',
     retry:'La page réessaie chaque minute.',
+    loadingTitle:'Chargement des données', loadingIndex:'Récupération de la liste des jours…', loadingDownload:'{done} jours sur {total} chargés · {mb} sur {totalMb} Mo', loadingProcess:'Traitement des données…', loadingRender:'Construction du tableau de bord…',
     info:'Plus d’informations',
     shfsNote:'Le fichier a été lu via /mnt/user (shfs) et le processus à l’origine n’a pas pu être identifié à temps. Les partages exclusifs ou un chemin direct vers le pool dans le conteneur révèlent la vraie source.',
     stoppedNote:'Le processus était déjà terminé avant que le tableau de bord puisse voir qui l’avait lancé. Les commandes brèves comme find ou ls apparaissent souvent ainsi.',
@@ -451,6 +478,7 @@ const I18N = {
     statusMissing:'Noch keine Messung. Die erste Abfrage der Festplatten erfolgt innerhalb einer Minute nach dem Start des Containers.',
     statusEmpty:'Noch keine laufenden Festplatten gefunden. Prüfe im Container-Log, ob /dev und /var/local/emhttp erreichbar sind.',
     retry:'Die Seite versucht es jede Minute erneut.',
+    loadingTitle:'Daten werden geladen', loadingIndex:'Liste der Tage wird abgerufen…', loadingDownload:'{done} von {total} Tagen geladen · {mb} von {totalMb} MB', loadingProcess:'Daten werden verarbeitet…', loadingRender:'Dashboard wird aufgebaut…',
     info:'Weitere Informationen',
     shfsNote:'Auf die Datei wurde über /mnt/user (shfs) zugegriffen, und der Prozess dahinter konnte nicht rechtzeitig ermittelt werden. Exklusive Shares oder ein direkter Pool-Pfad im Container zeigen die echte Quelle.',
     stoppedNote:'Der Prozess war bereits beendet, bevor das Dashboard sehen konnte, wer ihn gestartet hat. Kurzlebige Befehle wie find oder ls erscheinen oft so.',
@@ -495,6 +523,7 @@ const I18N = {
     statusMissing:'Todavía no hay mediciones. La primera comprobación de los discos se hace en el primer minuto tras iniciar el contenedor.',
     statusEmpty:'Todavía no se han encontrado discos girando. Comprueba en el registro del contenedor si /dev y /var/local/emhttp son accesibles.',
     retry:'La página lo vuelve a intentar cada minuto.',
+    loadingTitle:'Cargando datos', loadingIndex:'Obteniendo la lista de días…', loadingDownload:'{done} de {total} días cargados · {mb} de {totalMb} MB', loadingProcess:'Procesando los datos…', loadingRender:'Construyendo el panel…',
     info:'Más información',
     shfsNote:'Se accedió al archivo a través de /mnt/user (shfs) y no se pudo identificar a tiempo el proceso responsable. Los recursos compartidos exclusivos o una ruta directa al pool en el contenedor muestran la fuente real.',
     stoppedNote:'El proceso ya había terminado antes de que el panel pudiera ver quién lo inició. Los comandos breves como find o ls suelen aparecer así.',
@@ -1236,17 +1265,23 @@ function bindTips(a, b){
 }
 
 /* ---------- laden ---------- */
-function load(text, source, demo=false, keepRange=false){
+// step(fractie, sleutel): alleen bij de eerste lading; werkt de voortgang bij en geeft de browser
+// even de tijd om die te tekenen, want het verwerken zelf blokkeert de pagina.
+async function load(text, source, demo=false, keepRange=false, step=null){
+  if (step) await step(.82, 'loadingProcess');
   const {ev, act, names, who} = parseText(text);
   if (!ev.length) return false;
-  data = {disks: toTransitions(ev), names, act: mergeActivity(act, who), who: indexWho(who), source, demo};
+  if (step) await step(.88, 'loadingProcess');
+  const merged = mergeActivity(act, who);
+  if (step) await step(.96, 'loadingRender');
+  data = {disks: toTransitions(ev), names, act: merged, who: indexWho(who), source, demo};
   const ts = ev.map(e => e.t), span = Math.max(...ts) - Math.min(...ts);
   if (!keepRange){ range = span > 7*DAY ? '7' : 'all'; offset = 0; }
   show();
   return true;
 }
 function show(){
-  $('status').hidden = true;
+  $('status').hidden = true; $('loader').hidden = true;
   $('dash').hidden = false; $('ranges').hidden = false;
   render();
 }
@@ -1351,15 +1386,55 @@ function demoLog(){
 let lastText = '';
 // 'ok' | 'missing' | 'empty'
 // Eén CSV per dag; de browser vraagt ze voorwaardelijk op (304 als een dag niet veranderd is)
+/* ---------- laadpaneel: alleen bij de eerste lading, verversen gebeurt stil ---------- */
+const nextFrame = () => new Promise(r => typeof requestAnimationFrame === 'function'
+  ? requestAnimationFrame(() => setTimeout(r, 0)) : setTimeout(r, 0));
+function setProgress(frac, text){
+  const bar = $('loaderBar');
+  bar.classList.toggle('indeterminate', frac == null);
+  bar.firstElementChild.style.width = frac == null ? '' : `${Math.round(frac*100)}%`;
+  if (frac == null) bar.removeAttribute('aria-valuenow'); else bar.setAttribute('aria-valuenow', Math.round(frac*100));
+  $('loaderText').textContent = text;
+}
+const mb = n => (n / 1048576).toLocaleString(locale(), {minimumFractionDigits:1, maximumFractionDigits:1});
+// Tekst ophalen en tussendoor de ontvangen bytes melden (als de browser de body kan streamen)
+async function fetchText(url, onBytes){
+  const r = await fetch(url, {cache:'no-cache'});
+  if (!r.ok) return '';
+  if (!onBytes || !r.body || !r.body.getReader){
+    const txt = await r.text();
+    if (onBytes) onBytes(new Blob([txt]).size);      // geen stream: in één keer melden
+    return txt;
+  }
+  const reader = r.body.getReader(), chunks = [];
+  for (;;){
+    const {done, value} = await reader.read();
+    if (done) break;
+    chunks.push(value); onBytes(value.length);
+  }
+  return new Blob(chunks).text();
+}
+
+// Eén CSV per dag; de browser vraagt ze voorwaardelijk op (304 als een dag niet veranderd is)
 async function fetchLive(){
+  const first = !data;
+  if (first) setProgress(null, t('loadingIndex'));
   const idx = await fetch('data/days.json', {cache:'no-cache'}).then(r => r.ok ? r.json() : null).catch(() => null);
   if (!idx || !idx.days || !idx.days.length) return 'missing';
+  // eerste lading: 0-80% downloaden (op bytes als de server de totale grootte meegeeft), daarna verwerken
+  let got = 0, done = 0;
+  const total = idx.days.length, bytes = idx.bytes || 0;
+  const report = () => setProgress(.8 * (bytes ? Math.min(1, got / bytes) : done / total),
+    t('loadingDownload', {done, total, mb: mb(got), totalMb: mb(Math.max(bytes, got))}));
+  if (first) report();
   const texts = await Promise.all(idx.days.map(d =>
-    fetch(`data/days/${encodeURIComponent(d)}.csv`, {cache:'no-cache'}).then(r => r.ok ? r.text() : '').catch(() => '')));
+    fetchText(`data/days/${encodeURIComponent(d)}.csv`, first ? n => { got += n; report(); } : null)
+      .catch(() => '')
+      .then(txt => { if (first){ done++; report(); } return txt; })));
   const text = texts.join('\n');
   if (data && data.source === LIVE && text === lastText) return 'ok';
-  const first = !data;
-  if (!load(text, LIVE, false, !first)) return 'empty';
+  const step = first ? async (frac, key) => { setProgress(frac, t(key)); await nextFrame(); } : null;
+  if (!(await load(text, LIVE, false, !first, step))) return 'empty';
   lastText = text;
   return 'ok';
 }
@@ -1367,6 +1442,7 @@ let lastStatus = null;
 function showStatus(result){
   if (data) return;   // laatst geladen data blijft staan bij een tijdelijke fout
   lastStatus = result;
+  $('loader').hidden = true;
   const msg = t({missing: 'statusMissing', empty: 'statusEmpty'}[result]);
   $('statusText').textContent = msg + ' ' + t('retry');
   $('status').hidden = false;
@@ -1379,6 +1455,7 @@ async function tick(){
 
 (async () => {
   if (new URLSearchParams(location.search).has('demo')){ load(demoLog(), 'voorbeeld', true); return; }
+  $('loader').hidden = false;
   await tick();
   setInterval(() => { if (!document.hidden) tick(); }, 60000);
   // de feed toont relatieve tijden ("2 min geleden"); ververs die vaker dan de data zelf

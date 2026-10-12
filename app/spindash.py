@@ -105,6 +105,17 @@ def list_days():
         return []
 
 
+def days_index():
+    """Inhoud van /data/days.json: de dagen en hun totale grootte, voor de voortgangsbalk."""
+    days, total = list_days(), 0
+    for d in days:
+        try:
+            total += os.path.getsize(day_path(d))
+        except OSError:
+            pass
+    return {"days": days, "bytes": total}
+
+
 def is_own_file(path):
     name = os.path.basename(path.rstrip("/"))
     return name in OWN_FILES or bool(DAY_FILE.match(name))
@@ -741,7 +752,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         clean = self.path.split("?", 1)[0]
         if clean == "/data/days.json":
-            body = json.dumps({"days": list_days()}).encode()
+            body = json.dumps(days_index()).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))

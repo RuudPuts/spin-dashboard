@@ -35,7 +35,8 @@ def get(url):
 def test_serves_dashboard_day_list_and_day_files(server):
     assert get(server + "/")[:2] == (200, "<html>ok</html>")
     status, body, headers = get(server + "/data/days.json")
-    assert status == 200 and json.loads(body) == {"days": ["2026-10-08", "2026-10-09"]}
+    # bytes: totale grootte van de dagbestanden, voor de voortgangsbalk ("x\n" + 27 tekens)
+    assert status == 200 and json.loads(body) == {"days": ["2026-10-08", "2026-10-09"], "bytes": 2 + 27}
     assert headers["Cache-Control"] == "no-cache"
     status, body, headers = get(server + "/data/days/2026-10-09.csv")
     assert (status, body) == (200, "1791496800,spin,sdd,active\n")

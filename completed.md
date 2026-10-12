@@ -2,6 +2,11 @@
 
 Newest first.
 
+## 2026-10-12: loading progress
+- Loading panel on first load: a progress bar that follows the downloaded bytes ("3 of 12 days loaded · 4.2 of 13.0 MB"), then "Processing the data" and "Building the dashboard"; the browser gets a frame between steps so the bar actually updates
+- `days.json` includes the total size of the day files (`bytes`)
+- Google Fonts no longer blocks the first paint
+
 ## 2026-10-11: live feed and browsing
 - Live activity feed under Active drives: newest file events first, with R/W marker, source and a
   relative time; items new since the last refresh get a short highlight
