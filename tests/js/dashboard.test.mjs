@@ -7,20 +7,26 @@ import { JSDOM } from 'jsdom';
 const HTML = readFileSync(new URL('../../app/static/index.html', import.meta.url), 'utf8');
 const now = Date.now();
 const ep = (minAgo) => Math.floor((now - minAgo * 60e3) / 1000);
+// lokale datum als dagnaam, zoals de server die gebruikt
+const dayName = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const today = dayName(now);
 // days.json + dagbestanden zoals de server ze levert: served({'2026-10-09': [regels]})
 const served = (days) => Object.fromEntries([
   ['days.json', JSON.stringify({ days: Object.keys(days) })],
   ...Object.entries(days).map(([d, lines]) => [`days/${d}.csv`, lines.join('\n') + '\n']),
 ]);
 
-function load(files, url = 'http://dash/?lang=nl', languages = ['en-US'], stored = null) {
+function load(files, url = 'http://dash/?lang=nl', languages = ['en-US'], stored = null, setup = null) {
   const dom = new JSDOM(HTML, {
     runScripts: 'dangerously',
     url,
     beforeParse(w) {
       Object.defineProperty(w.navigator, 'languages', { value: languages });
       if (stored) w.localStorage.setItem('spindash.lang', stored);
+      if (setup) setup(w);
+      w.__fetched = [];
       w.fetch = (u) => {
+        w.__fetched.push(u);
         const key = Object.keys(files).find((k) => u.includes(k));
         if (!key || files[key] === null) return Promise.resolve({ ok: false });
         return Promise.resolve({ ok: true, text: () => Promise.resolve(files[key]),
@@ -33,7 +39,7 @@ function load(files, url = 'http://dash/?lang=nl', languages = ['en-US'], stored
 const text = (el) => el.textContent.replace(/\s+/g, ' ').trim();
 const rows = (doc) => [...doc.querySelectorAll('#events tr')].map(text);
 
-const POOL = served({ d1: [
+const POOL = served({ [today]: [
   `${ep(300)},disk,sdd,trunk`, `${ep(300)},disk,sde,trunk2`,
   `${ep(300)},state,sdd,standby`, `${ep(300)},state,sde,standby`,
   `${ep(121)},who,unraid,shfs (via /mnt/user),1,geopend,/mnt/trunk/`,
@@ -165,7 +171,7 @@ test('every language has the same keys as English', async () => {
 
 // ---------- bladeren ----------
 const day = 24 * 60;
-const SPREAD = served({ d1: [`${ep(40 * day)},disk,sdd,disk1`, ...[40, 35, 9, 8.9, 1.5, 1.4, 0.2, 0.1].map((d, i) =>
+const SPREAD = served({ [today]: [`${ep(40 * day)},disk,sdd,disk1`, ...[40, 35, 9, 8.9, 1.5, 1.4, 0.2, 0.1].map((d, i) =>
   `${ep(d * day)},spin,sdd,${i % 2 ? 'standby' : 'active'}`)] });
 const click = (d, sel) => d.querySelector(sel).click();
 const upTimes = (d) => rows(d).filter((x) => /Opgespind/.test(x)).length;
@@ -216,7 +222,7 @@ test('week and month views step a whole period, and "now" jumps back', async () 
 });
 
 // ---------- info-icoontjes ----------
-const ROOT = served({ d1: [
+const ROOT = served({ [today]: [
   `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,standby`,
   `${ep(121)},who,unraid,shfs (via /mnt/user),1,geopend,/mnt/trunk/`,
   `${ep(120)},spin,sdd,active`, `${ep(60)},spin,sdd,standby`,
@@ -277,7 +283,7 @@ test('day files are combined, and a state line is not a spin-up', async () => {
 });
 
 // ---------- lezen/schrijven en actieve schijven ----------
-const RW = served({ d1: [
+const RW = served({ [today]: [
   `${ep(300)},disk,sdd,trunk`,
   `${ep(300)},state,sdd,active`,                                       // draait al, geen spin-up
   `${ep(200)},who,container,plex,10,geschreven,/mnt/trunk/appdata/plex/Logs/server.log`,
@@ -297,7 +303,7 @@ test('a write event is grouped under the drive in the active-drives view', async
 });
 
 test('a write event in a session list carries a W badge, a read an R badge', async () => {
-  const SES = served({ d1: [
+  const SES = served({ [today]: [
     `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,standby`,
     `${ep(121)},who,container,plex,10,geschreven,/mnt/trunk/appdata/plex/Logs/server.log`,
     `${ep(120.5)},who,container,bazarr,2,geopend,/mnt/trunk/Media/series/a.mkv`,
@@ -329,7 +335,7 @@ test('active drives ranks the top writer and shows write counts', async () => {
 
 test('legacy who line without direction still renders without a badge', async () => {
   // oud 'geopend'-record van een bestand: geen R/W-badge (richting onbekend), geen crash
-  const LEG = served({ d1: [
+  const LEG = served({ [today]: [
     `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,standby`,
     `${ep(121)},who,container,bazarr,2,geopend,/mnt/trunk/Media/series/a.mkv`,
     `${ep(120)},spin,sdd,active`, `${ep(60)},spin,sdd,standby`,
@@ -472,5 +478,44 @@ test('no data hides the loading panel and shows the status message', async () =>
   const d = dom.window.document;
   assert.equal(d.getElementById('loader').hidden, true);
   assert.equal(d.getElementById('status').hidden, false);
+  dom.window.close();
+});
+
+// ---------- alleen de dagen van de getoonde periode ----------
+test('only the days of the shown period are fetched; browsing back loads the rest', async () => {
+  const days = {};
+  for (let k = 11; k >= 0; k--){
+    const t0 = now - k * day * 60e3;
+    days[dayName(t0)] = [`${Math.floor(t0 / 1000) - 7200},disk,sdd,disk1`,
+      `${Math.floor(t0 / 1000) - 3600},spin,sdd,active`, `${Math.floor(t0 / 1000) - 1800},spin,sdd,standby`];
+  }
+  const files = served(days);
+  files['days.json'] = JSON.stringify({ days: Object.keys(days), sizes: Object.keys(days).map(() => 100) });
+  const dom = await load(files);
+  const d = dom.window.document;
+  const fetchedDays = () => dom.window.__fetched.filter((u) => u.includes('/days/')).map((u) => u.match(/(\d{4}-\d{2}-\d{2})/)[1]);
+  const names = Object.keys(days);
+  // 7 dagen + een dag marge: de 3 oudste dagen zijn niet opgehaald
+  assert.equal(d.querySelector('[data-range="7"]').getAttribute('aria-pressed'), 'true');
+  assert.deepEqual(fetchedDays().sort(), names.slice(3));
+  assert.equal(upTimes(d), 7);
+  click(d, '#prev');                                     // week terug: de oudere dagen worden bijgeladen
+  await new Promise((r) => setTimeout(r, 100));
+  assert.deepEqual(fetchedDays().sort(), names);
+  assert.equal(upTimes(d), 5);                           // 7 t/m 11 dagen geleden
+  assert.equal(d.getElementById('dash').classList.contains('busy'), false);
+  const before = fetchedDays().length;
+  click(d, '[data-range="all"]');                        // alles staat al in het geheugen
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(fetchedDays().length, before);
+  assert.equal(upTimes(d), 12);
+  dom.window.close();
+});
+
+test('loading finishes in a hidden tab, where requestAnimationFrame never fires', async () => {
+  const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => { w.requestAnimationFrame = () => 0; });
+  const d = dom.window.document;
+  assert.equal(d.getElementById('dash').hidden, false);
+  assert.equal(d.getElementById('loader').hidden, true);
   dom.window.close();
 });

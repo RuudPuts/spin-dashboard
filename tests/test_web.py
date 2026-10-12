@@ -1,3 +1,4 @@
+import gzip
 import json
 import os
 import threading
@@ -36,7 +37,8 @@ def test_serves_dashboard_day_list_and_day_files(server):
     assert get(server + "/")[:2] == (200, "<html>ok</html>")
     status, body, headers = get(server + "/data/days.json")
     # bytes: totale grootte van de dagbestanden, voor de voortgangsbalk ("x\n" + 27 tekens)
-    assert status == 200 and json.loads(body) == {"days": ["2026-10-08", "2026-10-09"], "bytes": 2 + 27}
+    assert status == 200 and json.loads(body) == {"days": ["2026-10-08", "2026-10-09"], "bytes": 2 + 27,
+                                                   "sizes": [2, 27]}
     assert headers["Cache-Control"] == "no-cache"
     status, body, headers = get(server + "/data/days/2026-10-09.csv")
     assert (status, body) == (200, "1791496800,spin,sdd,active\n")
@@ -93,3 +95,33 @@ def test_stream_endpoint_delivers_broadcast(sd, server):
     body = resp.readline() + resp.readline()
     assert b"data: 1791496800,who,container,plex,1,geopend,/mnt/trunk/a.mkv" in body
     conn.close()
+
+
+def fetch(url, **headers):
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        r = urllib.request.urlopen(req, timeout=5)
+        return r.status, r.read(), r.headers
+    except urllib.error.HTTPError as e:
+        return e.code, b"", e.headers
+
+
+def test_day_files_are_gzipped_when_accepted(server):
+    status, body, headers = fetch(server + "/data/days/2026-10-09.csv", **{"Accept-Encoding": "gzip, deflate"})
+    assert status == 200 and headers["Content-Encoding"] == "gzip"
+    assert gzip.decompress(body) == b"1791496800,spin,sdd,active\n"
+    assert headers["Vary"] == "Accept-Encoding" and headers["Content-Type"].startswith("text/csv")
+    status, body, headers = fetch(server + "/data/days/2026-10-09.csv")          # zonder gzip
+    assert (status, body, headers["Content-Encoding"]) == (200, b"1791496800,spin,sdd,active\n", None)
+
+
+def test_unchanged_day_gives_304(server, sd):
+    _, _, h = fetch(server + "/data/days/2026-10-09.csv", **{"Accept-Encoding": "gzip"})
+    status, body, _ = fetch(server + "/data/days/2026-10-09.csv",
+                            **{"Accept-Encoding": "gzip", "If-None-Match": h["ETag"]})
+    assert (status, body) == (304, b"")
+    with open(sd.day_path("2026-10-09"), "a") as f:                            # dag groeit: weer 200
+        f.write("1791496900,spin,sdd,standby\n")
+    status, body, _ = fetch(server + "/data/days/2026-10-09.csv",
+                            **{"Accept-Encoding": "gzip", "If-None-Match": h["ETag"]})
+    assert status == 200 and gzip.decompress(body).count(b"\n") == 2

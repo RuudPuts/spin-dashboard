@@ -51,8 +51,11 @@ write of the same file within the window each appear once.
 are removed as a whole. On start, `migrate()` converts files from older versions; see
 `docs/data-formats.md`.
 
-**Frontend.** Every minute it fetches `days.json` and the day files (conditionally, 304 when
-unchanged), merges `activity` lines (old inotify data) and `who` lines into one activity stream
+**Frontend.** It fetches `days.json` and only the day files the shown period needs: the window
+plus one day on each side (a cause just after midnight, a session that ends the next day), and
+always today and yesterday for the live feed. Fetched days stay in memory; browsing back or
+choosing "All" fetches the missing days on demand. Every minute it refetches `days.json` and the
+live days (conditionally, 304 when unchanged). It merges `activity` lines (old inotify data) and `who` lines into one activity stream
 and links it to spin-ups. `state` lines set the state but are never a spin-up. The period is
 last hour, 24 hours, 7 days, 30 days or all; `offset` shifts the window back by whole periods.
 Texts come from `I18N` (en, nl, fr, de, es) via `t()`; dates via `Intl` in the locale of the chosen

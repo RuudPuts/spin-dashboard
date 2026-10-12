@@ -2,6 +2,12 @@
 
 Newest first.
 
+## 2026-10-12: faster loading
+- Day files are sent gzip-compressed (about 8× smaller on real data) with an `ETag`, so unchanged days get a `304`
+- The frontend fetches only the days of the shown period (plus a day of margin, plus today and yesterday); browsing back or "All" fetches the rest on demand, and the minute refresh only refetches the live days
+- `days.json` includes the size per day
+- Loading no longer stalls in a background tab, where `requestAnimationFrame` never fires
+
 ## 2026-10-12: loading progress
 - Loading panel on first load: a progress bar that follows the downloaded bytes ("3 of 12 days loaded · 4.2 of 13.0 MB"), then "Processing the data" and "Building the dashboard"; the browser gets a frame between steps so the bar actually updates
 - `days.json` includes the total size of the day files (`bytes`)

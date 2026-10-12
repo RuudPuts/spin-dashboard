@@ -64,6 +64,7 @@ button,select{font:inherit;color:inherit}
 .bar i{display:block;height:100%;width:0;background:var(--spin);border-radius:4px;transition:width .25s ease-out}
 .bar.indeterminate i{width:30%;position:absolute;left:-30%}
 .loader p{margin:10px 0 0;font-size:13.5px}
+#dash.busy{opacity:.55;transition:opacity .2s}
 @media (prefers-reduced-motion:no-preference){
   .spinner{animation:spin .8s linear infinite}
   .bar.indeterminate i{animation:slide 1.2s ease-in-out infinite}
@@ -810,7 +811,12 @@ function mergeActivity(act, who){
 /* ---------- bereik ---------- */
 function extent(){
   let min = Infinity, max = -Infinity;
-  for (const l of Object.values(data.disks)) for (const x of l){ min = Math.min(min,x.t); max = Math.max(max,x.t); }
+  if (data) for (const l of Object.values(data.disks)) for (const x of l){ min = Math.min(min,x.t); max = Math.max(max,x.t); }
+  // live: ook de dagen uit days.json, zodat je kunt terugbladeren naar dagen die nog niet geladen zijn
+  if (index && index.days.length && (!data || data.source === LIVE)){
+    min = Math.min(min, dayStartMs(index.days[0]));
+    max = Math.max(max, Math.min(Date.now(), dayStartMs(index.days[index.days.length-1]) + DAY - 1));
+  }
   return [min, (Date.now() - max < 2*DAY) ? Date.now() : max];
 }
 // Venster van één periode (1, 7 of 30 dagen), `offset` periodes terug vanaf nu
@@ -1286,10 +1292,10 @@ function show(){
   render();
 }
 
-document.querySelectorAll('[data-range]').forEach(btn => btn.onclick = () => { range = btn.dataset.range; offset = 0; render(); });
-$('prev').onclick = () => { offset++; render(); };
-$('next').onclick = () => { offset = Math.max(0, offset - 1); render(); };
-$('now').onclick = () => { offset = 0; render(); };
+document.querySelectorAll('[data-range]').forEach(btn => btn.onclick = () => navigate(() => { range = btn.dataset.range; offset = 0; }));
+$('prev').onclick = () => navigate(() => { offset++; });
+$('next').onclick = () => navigate(() => { offset = Math.max(0, offset - 1); });
+$('now').onclick = () => navigate(() => { offset = 0; });
 $('lang').onchange = () => {
   lang = $('lang').value;
   try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
@@ -1383,12 +1389,15 @@ function demoLog(){
 }
 
 /* ---------- live data van de server (docker) ---------- */
-let lastText = '';
 // 'ok' | 'missing' | 'empty'
-// Eén CSV per dag; de browser vraagt ze voorwaardelijk op (304 als een dag niet veranderd is)
 /* ---------- laadpaneel: alleen bij de eerste lading, verversen gebeurt stil ---------- */
-const nextFrame = () => new Promise(r => typeof requestAnimationFrame === 'function'
-  ? requestAnimationFrame(() => setTimeout(r, 0)) : setTimeout(r, 0));
+// Een verborgen tabblad voert requestAnimationFrame niet uit; de timer zorgt dat het laden dan doorgaat
+const nextFrame = () => new Promise(r => {
+  let done = false;
+  const go = () => { if (!done){ done = true; setTimeout(r, 0); } };
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(go);
+  setTimeout(go, 50);
+});
 function setProgress(frac, text){
   const bar = $('loaderBar');
   bar.classList.toggle('indeterminate', frac == null);
@@ -1415,28 +1424,69 @@ async function fetchText(url, onBytes){
   return new Blob(chunks).text();
 }
 
-// Eén CSV per dag; de browser vraagt ze voorwaardelijk op (304 als een dag niet veranderd is)
+/* ---------- dagen: alleen ophalen wat de getoonde periode nodig heeft ---------- */
+let index = null;               // laatste days.json
+const dayTexts = new Map();     // dag -> inhoud; oude dagen veranderen niet en blijven in het geheugen
+const dayStartMs = d => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd).getTime(); };
+// vandaag en gisteren: voor de live feed en het laatste uur, en die worden elke minuut opnieuw opgevraagd
+const liveDays = () => new Set(index.days.slice(-2));
+// De dagen van het venster, met een dag marge aan beide kanten (oorzaak vlak na middernacht,
+// duur van een sessie die de volgende dag eindigt), plus de live dagen.
+function neededDays(){
+  if (range === 'all') return index.days.slice();
+  const [a, b] = bounds(), live = liveDays();
+  return index.days.filter(d => { const s = dayStartMs(d); return live.has(d) || (s < b + DAY && s + DAY > a - DAY); });
+}
+// Haalt dagen op die nog niet in het geheugen staan, plus de live dagen. Geeft true als er iets veranderde.
+async function fetchDays(days, onProgress){
+  const live = liveDays();
+  const todo = days.filter(d => !dayTexts.has(d) || live.has(d));
+  const size = Object.fromEntries(index.days.map((d, i) => [d, (index.sizes || [])[i] || 0]));
+  // oudere server: alleen het totaal, geen grootte per dag; dat klopt alleen als alle dagen nodig zijn
+  const bytes = index.sizes ? todo.reduce((n, d) => n + size[d], 0)
+              : todo.length === index.days.length ? (index.bytes || 0) : 0;
+  let got = 0, done = 0, changed = false;
+  const report = () => onProgress && onProgress(bytes ? Math.min(1, got / bytes) : done / (todo.length || 1),
+    t('loadingDownload', {done, total: todo.length, mb: mb(got), totalMb: mb(Math.max(bytes, got))}));
+  report();
+  await Promise.all(todo.map(d =>
+    fetchText(`data/days/${encodeURIComponent(d)}.csv`, onProgress ? n => { got += n; report(); } : null)
+      .catch(() => null)
+      .then(txt => {
+        done++; report();
+        if (txt !== null && dayTexts.get(d) !== txt){ dayTexts.set(d, txt); changed = true; }
+      })));
+  return changed;
+}
+// Alle geladen dagen opnieuw tot één dataset verwerken
+function rebuild(step){
+  const text = index.days.filter(d => dayTexts.has(d)).map(d => dayTexts.get(d)).join('\n');
+  return load(text, LIVE, false, true, step);
+}
+
 async function fetchLive(){
   const first = !data;
   if (first) setProgress(null, t('loadingIndex'));
   const idx = await fetch('data/days.json', {cache:'no-cache'}).then(r => r.ok ? r.json() : null).catch(() => null);
   if (!idx || !idx.days || !idx.days.length) return 'missing';
-  // eerste lading: 0-80% downloaden (op bytes als de server de totale grootte meegeeft), daarna verwerken
-  let got = 0, done = 0;
-  const total = idx.days.length, bytes = idx.bytes || 0;
-  const report = () => setProgress(.8 * (bytes ? Math.min(1, got / bytes) : done / total),
-    t('loadingDownload', {done, total, mb: mb(got), totalMb: mb(Math.max(bytes, got))}));
-  if (first) report();
-  const texts = await Promise.all(idx.days.map(d =>
-    fetchText(`data/days/${encodeURIComponent(d)}.csv`, first ? n => { got += n; report(); } : null)
-      .catch(() => '')
-      .then(txt => { if (first){ done++; report(); } return txt; })));
-  const text = texts.join('\n');
-  if (data && data.source === LIVE && text === lastText) return 'ok';
+  index = idx;
+  for (const d of [...dayTexts.keys()]) if (!idx.days.includes(d)) dayTexts.delete(d);   // opgeruimd
+  if (first){ range = idx.days.length > 7 ? '7' : 'all'; offset = 0; }
+  // eerste lading: 0-80% downloaden, daarna verwerken; verversen gebeurt stil
+  const changed = await fetchDays(neededDays(), first ? (frac, text) => setProgress(.8 * frac, text) : null);
+  if (!first && !changed) return 'ok';
   const step = first ? async (frac, key) => { setProgress(frac, t(key)); await nextFrame(); } : null;
-  if (!(await load(text, LIVE, false, !first, step))) return 'empty';
-  lastText = text;
-  return 'ok';
+  return (await rebuild(step)) ? 'ok' : 'empty';
+}
+// Periode of venster wijzigen; ontbrekende dagen eerst ophalen (voortgang in de regel onder de titel)
+async function navigate(change){
+  change();
+  const missing = index && data && data.source === LIVE ? neededDays().filter(d => !dayTexts.has(d)) : [];
+  if (!missing.length){ render(); return; }
+  $('dash').classList.add('busy');
+  await fetchDays(missing, (frac, text) => { $('sourceLine').textContent = text; });
+  await rebuild(null);
+  $('dash').classList.remove('busy');
 }
 let lastStatus = null;
 function showStatus(result){

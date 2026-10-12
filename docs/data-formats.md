@@ -54,8 +54,8 @@ within that window each get their own line.
 
 | URL | Content |
 |---|---|
-| `/data/days.json` | `{"days": ["2026-10-08", "2026-10-09"], "bytes": 13042817}`: the days in ascending order and the total size of their files, which the frontend uses for its loading progress. Older versions sent only `days`; the frontend then counts finished days instead of bytes. |
-| `/data/days/YYYY-MM-DD.csv` | One day file. Any other path under `/data/` returns 404. |
+| `/data/days.json` | `{"days": ["2026-10-08", "2026-10-09"], "bytes": 13042817, "sizes": [6521400, 6521417]}`: the days in ascending order, the total size and the size per day (uncompressed). The frontend uses them to fetch only the days it shows and to report loading progress. Older versions sent only `days` (and later `bytes`); the frontend then counts finished days instead of bytes. |
+| `/data/days/YYYY-MM-DD.csv` | One day file, gzip-compressed when the browser sends `Accept-Encoding: gzip` (about 8× smaller on real data). Each response has an `ETag`; a request with a matching `If-None-Match` gets a `304` without a body. Any other path under `/data/` returns 404. |
 | `/data/stream` | Server-Sent Events. Every `who` line is pushed the moment it is logged (`data: <line>`), with a `: ping` every 30 s to keep the connection alive. Powers the live feed; the day files stay the source of truth. |
 
 ## Retention

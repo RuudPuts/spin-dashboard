@@ -18,5 +18,5 @@ Open work, roughly by priority. Move finished items to `completed.md`.
 ## Technical
 - [ ] Health endpoint (`/health`) with poller and watcher status, used by the Docker HEALTHCHECK
 - [ ] Make `via_user_share` faster with many processes (cache fd scans per second)
-- [ ] Large data sets: have the frontend fetch and process only the days of the selected range
+- [ ] Faster first render with large data sets: rendering the panels and the event table takes most of the processing time on real data (measure in a visible tab first)
 - [ ] Multi-arch image not needed (Unraid is amd64), but document it

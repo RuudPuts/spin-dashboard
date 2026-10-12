@@ -14,6 +14,7 @@ Alles staat in DATA_DIR/days: één CSV per dag (YYYY-MM-DD.csv, lokale datum) m
 `epoch,soort,...` (disk, state, spin, who, activity). Oudere losse bestanden (spin.csv, disks.csv,
 who.csv, activity.csv) worden bij het starten eenmalig naar dagbestanden gemigreerd.
 """
+import gzip
 import http.client
 import http.server
 import json
@@ -106,14 +107,34 @@ def list_days():
 
 
 def days_index():
-    """Inhoud van /data/days.json: de dagen en hun totale grootte, voor de voortgangsbalk."""
-    days, total = list_days(), 0
+    """Inhoud van /data/days.json: de dagen, hun grootte en het totaal (ongecomprimeerd), zodat de
+    frontend alleen de dagen van de getoonde periode ophaalt en daarbij voortgang kan tonen."""
+    days, sizes = list_days(), []
     for d in days:
         try:
-            total += os.path.getsize(day_path(d))
+            sizes.append(os.path.getsize(day_path(d)))
         except OSError:
-            pass
-    return {"days": days, "bytes": total}
+            sizes.append(0)
+    return {"days": days, "bytes": sum(sizes), "sizes": sizes}
+
+
+_gz_cache = {}        # pad -> (mtime_ns, grootte, gzip-bytes); oude dagen veranderen niet meer
+
+
+def day_body(path, st, gz):
+    """Inhoud van een dagbestand, gzip-gecomprimeerd als de browser dat accepteert."""
+    if not gz:
+        with open(path, "rb") as f:
+            return f.read()
+    hit = _gz_cache.get(path)
+    if hit and hit[:2] == (st.st_mtime_ns, st.st_size):
+        return hit[2]
+    with open(path, "rb") as f:
+        body = gzip.compress(f.read(), compresslevel=6, mtime=0)
+    if len(_gz_cache) >= 64:
+        _gz_cache.clear()
+    _gz_cache[path] = (st.st_mtime_ns, st.st_size, body)
+    return body
 
 
 def is_own_file(path):
@@ -762,7 +783,43 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if clean == "/data/stream":
             self.stream_events()
             return
+        m = re.fullmatch(r"/data/days/(\d{4}-\d{2}-\d{2}\.csv)", clean)
+        if m:
+            self.send_day(os.path.join(DAYS, m.group(1)))
+            return
         super().do_GET()
+
+    def send_day(self, path):
+        """Dagbestand met gzip (als de browser dat accepteert) en een ETag, zodat een ongewijzigde
+        dag een 304 zonder inhoud oplevert."""
+        try:
+            st = os.stat(path)
+        except OSError:
+            self.send_error(404)
+            return
+        gz = "gzip" in self.headers.get("Accept-Encoding", "")
+        etag = f'"{st.st_mtime_ns:x}-{st.st_size:x}{"-gz" if gz else ""}"'
+        if etag in self.headers.get("If-None-Match", ""):
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Vary", "Accept-Encoding")
+            self.end_headers()
+            return
+        try:
+            body = day_body(path, st, gz)
+        except OSError:
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/csv; charset=utf-8")
+        if gz:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("ETag", etag)
+        self.send_header("Vary", "Accept-Encoding")
+        self.send_header("Last-Modified", self.date_time_string(st.st_mtime))
+        self.end_headers()
+        self.wfile.write(body)
 
     def stream_events(self):
         """Server-Sent Events: stuur elke nieuwe who-regel direct naar de browser,
