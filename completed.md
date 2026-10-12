@@ -2,6 +2,11 @@
 
 Newest first.
 
+## 2026-10-12: processing 60× faster, new loading screen
+- Finding the source of an access (`nearestWho`) scanned the whole list for a path on every call, which made processing quadratic; with 110,000 real lines it took about 2 minutes in jsdom. The who index is now sorted per path with a separate index for SMB/NFS shares, and lookups use binary search: under 2 seconds in jsdom
+- The live stream inserts new lines in place instead of re-sorting all activity, and redraws at most every 300 ms after the first event
+- Loading screen: a thin progress bar at the top, the current step under the title and a shimmering skeleton of the dashboard, instead of a separate panel
+
 ## 2026-10-12: faster loading
 - Day files are sent gzip-compressed (about 8× smaller on real data) with an `ETag`, so unchanged days get a `304`
 - The frontend fetches only the days of the shown period (plus a day of margin, plus today and yesterday); browsing back or "All" fetches the rest on demand, and the minute refresh only refetches the live days

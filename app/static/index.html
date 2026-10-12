@@ -55,21 +55,31 @@ button,select{font:inherit;color:inherit}
 /* status */
 .status{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:24px;max-width:640px}
 
-/* laadpaneel */
-.loader{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:24px;max-width:640px}
-.loader-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-.loader-head h2{margin:0}
-.spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--spin);flex:none}
-.bar{height:8px;border-radius:4px;background:var(--bg);overflow:hidden;position:relative}
-.bar i{display:block;height:100%;width:0;background:var(--spin);border-radius:4px;transition:width .25s ease-out}
-.bar.indeterminate i{width:30%;position:absolute;left:-30%}
-.loader p{margin:10px 0 0;font-size:13.5px}
+/* laden: dunne balk bovenaan, staptekst onder de titel en een skelet van het dashboard */
+.topbar{position:fixed;top:0;left:0;right:0;height:3px;z-index:20;overflow:hidden;pointer-events:none}
+.topbar i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--spin);
+  box-shadow:0 0 10px var(--spin);border-radius:0 2px 2px 0;transition:width .3s ease-out}
+.topbar.indeterminate i{width:30%;left:-30%}
+.loading-text{display:flex;align-items:center;gap:8px}
+.spinner{width:13px;height:13px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--spin);flex:none}
+.skel .sk{display:block;border-radius:6px;background:var(--line)}
+.skel .sk-lane{display:grid;grid-template-columns:5.5rem 1fr 11rem;gap:14px;align-items:center;padding:14px 0}
+.skel .sk-lane+.sk-lane{border-top:1px solid var(--line)}
+.skel .lower .panel{min-height:230px;display:flex;flex-direction:column;gap:14px}
+.skel .bars{flex:1;display:flex;align-items:flex-end;gap:5px}
+.skel .bars .sk{flex:1;border-radius:3px 3px 0 0}
+@media (max-width:820px){.skel .sk-lane{grid-template-columns:4rem 1fr}.skel .sk-lane .sk:last-child{display:none}}
 #dash.busy{opacity:.55;transition:opacity .2s}
 @media (prefers-reduced-motion:no-preference){
   .spinner{animation:spin .8s linear infinite}
-  .bar.indeterminate i{animation:slide 1.2s ease-in-out infinite}
+  .topbar.indeterminate i{animation:slide 1.2s ease-in-out infinite}
+  .skel .sk{background:linear-gradient(90deg,var(--line) 0,var(--panel) 50%,var(--line) 100%);
+    background-size:200% 100%;animation:shimmer 1.4s ease-in-out infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes slide{to{left:100%}}
+  @keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+  #dash:not([hidden]){animation:fadein .3s ease-out}
+  @keyframes fadein{from{opacity:0}}
 }
 .status h2{margin-bottom:6px}
 .status p{margin:0}
@@ -207,7 +217,8 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
   <header class="top">
     <div>
       <h1 data-i18n="heading">When do my drives spin</h1>
-      <p id="sourceLine" class="muted" data-i18n="loading">Loading data</p>
+      <p id="sourceLine" class="muted" hidden></p>
+      <p class="muted loading-text" id="loaderLine"><span class="spinner" aria-hidden="true"></span><span id="loaderText" aria-live="polite" data-i18n="loading">Loading data</span></p>
     </div>
     <div class="controls">
       <div class="seg" role="group" data-i18n-aria="period" id="ranges" hidden>
@@ -232,10 +243,20 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
     </div>
   </header>
 
-  <section class="loader" id="loader" hidden>
-    <div class="loader-head"><span class="spinner" aria-hidden="true"></span><h2 data-i18n="loadingTitle">Loading data</h2></div>
-    <div class="bar indeterminate" id="loaderBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" data-i18n-aria="loadingTitle"><i></i></div>
-    <p class="muted" id="loaderText" aria-live="polite"></p>
+  <div class="topbar indeterminate" id="loaderBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" data-i18n-aria="loadingTitle" hidden><i></i></div>
+  <section class="skel" id="loader" aria-hidden="true" hidden>
+    <div class="lanes">
+      <div class="sk-lane"><span class="sk" style="height:14px;width:70%"></span><span class="sk" style="height:28px"></span><span class="sk" style="height:14px;width:60%"></span></div>
+      <div class="sk-lane"><span class="sk" style="height:14px;width:55%"></span><span class="sk" style="height:28px"></span><span class="sk" style="height:14px;width:60%"></span></div>
+      <div class="sk-lane"><span class="sk" style="height:14px;width:65%"></span><span class="sk" style="height:28px"></span><span class="sk" style="height:14px;width:60%"></span></div>
+      <div class="sk-lane"><span class="sk" style="height:14px;width:50%"></span><span class="sk" style="height:28px"></span><span class="sk" style="height:14px;width:60%"></span></div>
+    </div>
+    <div class="lower">
+      <div class="panel"><span class="sk" style="height:16px;width:45%"></span>
+        <div class="bars"><span class="sk" style="height:20%"></span><span class="sk" style="height:35%"></span><span class="sk" style="height:80%"></span><span class="sk" style="height:30%"></span><span class="sk" style="height:15%"></span><span class="sk" style="height:45%"></span><span class="sk" style="height:60%"></span><span class="sk" style="height:25%"></span><span class="sk" style="height:50%"></span><span class="sk" style="height:35%"></span><span class="sk" style="height:70%"></span><span class="sk" style="height:40%"></span></div></div>
+      <div class="panel"><span class="sk" style="height:16px;width:55%"></span>
+        <span class="sk" style="height:10px;width:90%"></span><span class="sk" style="height:10px;width:70%"></span><span class="sk" style="height:10px;width:55%"></span><span class="sk" style="height:10px;width:40%"></span><span class="sk" style="height:10px;width:30%"></span></div>
+    </div>
   </section>
 
   <section class="status" id="status" hidden>
@@ -731,22 +752,41 @@ function causeHtml(c){
 const normPath = p => p.replace(/\/+$/, '');
 // sleutel voor de who-index: SMB/NFS-regels gelden voor de hele share
 const whoKey = w => normPath(isShareUser(w) ? (shareRootOf(w.path) || w.path) : w.path);
+// Twee indexen, elke lijst gesorteerd op tijd zodat zoeken binair kan (anders kwadratisch bij veel data):
+// all: per pad (SMB/NFS onder de share-root), share: alleen SMB/NFS-regels per share-root.
 function indexWho(list){
-  const byPath = new Map();
+  const all = new Map(), share = new Map();
+  const add = (m, k, w) => { if (!m.has(k)) m.set(k, []); m.get(k).push(w); };
   for (const w of list){
-    const k = whoKey(w);
-    if (!byPath.has(k)) byPath.set(k, []);
-    byPath.get(k).push(w);
+    add(all, whoKey(w), w);
+    if (isShareUser(w)) add(share, whoKey(w), w);
   }
-  return byPath;
+  for (const m of [all, share]) for (const l of m.values()) l.sort((p, q) => p.t - q.t);
+  return {all, share};
 }
-const hasWho = () => data.who && data.who.size > 0;
+// nieuwe regel op zijn plek invoegen (de live stream levert ze vrijwel altijd op volgorde)
+function addWho(w){
+  for (const [m, ok] of [[data.who.all, true], [data.who.share, isShareUser(w)]]){
+    if (!ok) continue;
+    const k = whoKey(w), l = m.get(k) || [];
+    l.splice(lowerBound(l, w.t), 0, w);
+    m.set(k, l);
+  }
+}
+// eerste index met .t >= t
+function lowerBound(list, t){
+  let lo = 0, hi = list.length;
+  while (lo < hi){ const m = (lo + hi) >> 1; if (list[m].t < t) lo = m + 1; else hi = m; }
+  return lo;
+}
+const hasWho = () => data.who && data.who.all.size > 0;
 // dichtstbijzijnde bron voor hetzelfde pad (inotify en fanotify zien dezelfde toegang)
-function nearestWho(path, t, filter){
-  const list = data.who.get(normPath(path)); if (!list) return null;
+function nearestWho(path, t, shareOnly = false){
+  const list = (shareOnly ? data.who.share : data.who.all).get(normPath(path)); if (!list) return null;
+  const i = lowerBound(list, t);
   let best = null, bd = Infinity;
-  for (const w of list){
-    if (filter && !filter(w)) continue;
+  for (const w of [list[i - 1], list[i]]){
+    if (!w) continue;
     const d = Math.abs(w.t - t); if (d < bd){ bd = d; best = w; }
   }
   // who-regels worden per 10 minuten gededupliceerd, dus een eerdere regel binnen die tijd telt ook
@@ -760,7 +800,7 @@ function shareRootOf(path){
 function whoFor(e){
   if (!e || !hasWho()) return null;
   // SMB/NFS staat als één who-regel per share; losse bestanden vallen daaronder
-  return nearestWho(e.path, e.t) || (shareRootOf(e.path) ? nearestWho(shareRootOf(e.path), e.t, isShareUser) : null);
+  return nearestWho(e.path, e.t) || (shareRootOf(e.path) ? nearestWho(shareRootOf(e.path), e.t, true) : null);
 }
 // Toegang via een SMB/NFS-share: niet per bestand tonen, maar één regel per share
 function collapseShare(e){
@@ -1011,10 +1051,10 @@ function render(){
 // als de spin-up-oorzaken), dus ook als er helemaal geen spin-ups zijn.
 function actDrives(a, b, devs){
   if (!hasAct()) return [];
-  const perDev = {};
-  for (const e of data.act){
-    if (e.t < a || e.t > b) continue;
-    const m = devs.find(d => { const mm = matcherFor(d); return !mm.parity && mm.test(e); });
+  const perDev = {}, ms = devs.map(d => [d, matcherFor(d)]).filter(([, mm]) => !mm.parity);
+  for (let i = lowerBound(data.act, a); i < data.act.length && data.act[i].t <= b; i++){
+    const e = data.act[i];
+    const m = (ms.find(([, mm]) => mm.test(e)) || [])[0];
     if (!m) continue;                            // parity-schrijvingen tellen bij de echte schijf
     const d = perDev[m] || (perDev[m] = {dev: m, w: 0, r: 0, srcW: {}, srcR: {}, fileW: {}, fileR: {}});
     const dir = dirOf(e) || (WRITES.test(e.ev) ? 'w' : 'r');
@@ -1287,7 +1327,7 @@ async function load(text, source, demo=false, keepRange=false, step=null){
   return true;
 }
 function show(){
-  $('status').hidden = true; $('loader').hidden = true;
+  $('status').hidden = true; loading(false);
   $('dash').hidden = false; $('ranges').hidden = false;
   render();
 }
@@ -1398,6 +1438,11 @@ const nextFrame = () => new Promise(r => {
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(go);
   setTimeout(go, 50);
 });
+// Laadweergave aan/uit: skelet, balk bovenaan en staptekst in plaats van de ondertitel
+function loading(on){
+  $('loader').hidden = $('loaderBar').hidden = $('loaderLine').hidden = !on;
+  $('sourceLine').hidden = on;
+}
 function setProgress(frac, text){
   const bar = $('loaderBar');
   bar.classList.toggle('indeterminate', frac == null);
@@ -1492,7 +1537,7 @@ let lastStatus = null;
 function showStatus(result){
   if (data) return;   // laatst geladen data blijft staan bij een tijdelijke fout
   lastStatus = result;
-  $('loader').hidden = true;
+  loading(false);
   const msg = t({missing: 'statusMissing', empty: 'statusEmpty'}[result]);
   $('statusText').textContent = msg + ' ' + t('retry');
   $('status').hidden = false;
@@ -1505,7 +1550,7 @@ async function tick(){
 
 (async () => {
   if (new URLSearchParams(location.search).has('demo')){ load(demoLog(), 'voorbeeld', true); return; }
-  $('loader').hidden = false;
+  loading(true);
   await tick();
   setInterval(() => { if (!document.hidden) tick(); }, 60000);
   // de feed toont relatieve tijden ("2 min geleden"); ververs die vaker dan de data zelf
@@ -1527,14 +1572,19 @@ function streamLive(){
 function ingestWho(line){
   const {who} = parseText(line);
   if (!who.length) return;
-  const w0 = who[0], k = whoKey(w0);
-  const list = data.who.get(k) || [];
-  list.push(w0);
-  data.who.set(k, list);
-  const add = mergeActivity([], [w0]);            // zelfde omzetting als bij het laden
-  data.act = data.act.concat(add).sort((p, q) => p.t - q.t);
+  const w0 = who[0];
+  addWho(w0);
+  for (const e of mergeActivity([], [w0]))          // zelfde omzetting als bij het laden
+    data.act.splice(lowerBound(data.act, e.t + 1), 0, e);
+  scheduleLive();
+}
+// Het eerste event direct tekenen; bij een drukke stroom daarna hooguit eens per 300 ms (de laatste altijd)
+let liveTimer = null, livePending = false;
+function scheduleLive(){
+  if (liveTimer){ livePending = true; return; }
   renderFeed();
   renderActDrives(...bounds(), Object.keys(data.disks).sort(devOrder));
+  liveTimer = setTimeout(() => { liveTimer = null; if (livePending){ livePending = false; scheduleLive(); } }, 300);
 }
 })();
 </script>
