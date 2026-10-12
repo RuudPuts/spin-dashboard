@@ -33,6 +33,7 @@ def sd(tmp_path, monkeypatch):
     monkeypatch.setattr(spindash, "names", {})
     monkeypatch.setattr(spindash, "seen", {})
     monkeypatch.setattr(spindash, "ignored_comms", {})
+    monkeypatch.setattr(spindash, "_ignore_seen", {"t": None, "on": False})
     monkeypatch.setattr(spindash, "log", lambda *a: None)
     (tmp_path / "emhttp").mkdir()
     (tmp_path / "sys").mkdir()

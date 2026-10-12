@@ -244,3 +244,29 @@ def test_via_user_share_finds_real_opener(sd):
     assert sd.via_user_share("/mnt/trunk/Media/a.mkv") == ("300", "Plex Media Serv")
     assert sd.via_user_share("/mnt/trunk/Media/missing.mkv") is None
     assert sd.via_user_share("/mnt/trunk") is None
+
+
+def test_stopped_dir_scans_are_dropped_while_cache_dirs_runs(sd, monkeypatch):
+    calls = []
+    monkeypatch.setattr(sd, "write_who", lambda *a: calls.append(a))
+    d = sd._tmp / "pool" / "fotos"
+    d.mkdir(parents=True)
+    sd.handle(f"1.0 unknown(4242): O   {d}\n")                   # nog geen cache_dirs: wel loggen
+    assert [c[2] for c in calls] == ["unknown (al gestopt)"]
+    make_proc(sd._tmp, 900, "cache_dirs")
+    monkeypatch.setattr(sd, "_ignore_seen", {"t": None, "on": False})
+    calls.clear()
+    sd.handle(f"1.0 unknown(4243): O   {d}\n")                   # map, proces weg: niet loggen
+    sd.handle("1.0 unknown(4244): O   /mnt/trunk/Media/fotos/a.jpg\n")   # bestand: wel loggen
+    make_proc(sd._tmp, 950, "ls")
+    sd.handle(f"1.0 ls(950): O   {d}\n")                         # draaiend proces met bron: wel loggen
+    assert [(c[2], c[5]) for c in calls] == [("unknown (al gestopt)", "/mnt/trunk/Media/fotos/a.jpg"),
+                                            ("ls", f"{d}/")]
+
+
+def test_ignore_active_is_cached_and_reads_command_lines(sd):
+    assert sd.ignore_active(now=1000) is False
+    p = make_proc(sd._tmp, 900, "bash")
+    (p / "cmdline").write_bytes(b"/bin/bash\0/usr/local/emhttp/plugins/dynamix.cache.dirs/scripts/cache_dirs\0")
+    assert sd.ignore_active(now=1010) is False                  # nog binnen IGNORE_SCAN: onthouden
+    assert sd.ignore_active(now=1031) is True

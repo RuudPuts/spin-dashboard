@@ -2,6 +2,9 @@
 
 Newest first.
 
+## 2026-10-12: Cache Dirs scans of large folder trees
+- Folder opens by an already stopped process without a source are not logged while Cache Dirs runs. fatrace reported these `find` runs as `unknown`, which slipped past the filter: on a real day 98.5% of all lines (46 MB of 46.5 MB), and the main reason the dashboard loaded slowly
+
 ## 2026-10-12: processing 60× faster, new loading screen
 - The dashboard opens in the 24-hour view (3 day files instead of 9 on first load)
 - Switching period or browsing back and forward shows the skeleton and the loading bar again, with the chosen button highlighted right away

@@ -56,6 +56,13 @@ as `unraid,find` when the chain was already half broken. Hence three layers:
    a process with that name without a recognisable source (`(al gestopt)` or just the process name)
    is ignored too. A `find` from a shell, SMB or cron does have a source and stays visible; a
    stand-alone `find` without a source within those five minutes is unfortunately dropped as well.
+4. With large folder trees (a photo library with thousands of thumbnail folders) `find` finishes so
+   fast that fatrace itself can no longer read the process name and reports `unknown`, and the
+   ancestors are gone too, so layers 1–3 never see a `cache_dirs` process. On one real day this was
+   258,000 of 262,000 lines (46 MB instead of 0.5 MB), which made the dashboard slow to load. Since
+   `find` only opens folders, `handle()` drops a **folder** open by a process that has already
+   stopped and has no source, as long as an `IGNORE_PROCS` process is running (`ignore_active()`,
+   checked at most every 30 s). File opens by unknown processes stay visible.
 
 ## Time zones
 Unraid can run on UTC while containers use local time; cron on the host then counts differently

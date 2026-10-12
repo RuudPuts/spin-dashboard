@@ -43,6 +43,7 @@ IGNORE_PROCS = set(os.environ.get("IGNORE_PROCS", "cache_dirs").split())
 SHFS_DELAY = 0.4
 PID_TTL = 30          # uitkomst van classify() per PID zo lang onthouden
 IGNORE_TTL = 300      # zo lang na een genegeerd proces dezelfde naam zonder bron ook negeren
+IGNORE_SCAN = 30      # zo vaak opnieuw kijken of er een IGNORE_PROCS-proces draait (s)
 
 # Paden naar het hostsysteem; in tests te vervangen
 PROC = "/proc"
@@ -323,6 +324,38 @@ def chain_of(pid, limit=15):
     return chain
 
 
+_ignore_seen = {"t": None, "on": False}
+
+
+def ignore_active(now=None):
+    """Draait er een proces uit IGNORE_PROCS (bv. cache_dirs)? Hooguit eens per IGNORE_SCAN opnieuw bekeken."""
+    now = time.time() if now is None else now
+    if _ignore_seen["t"] is not None and now - _ignore_seen["t"] < IGNORE_SCAN:
+        return _ignore_seen["on"]
+    on = False
+    try:
+        pids = [p for p in os.listdir(PROC) if p.isdigit()]
+    except OSError:
+        pids = []
+    for p in pids:
+        try:
+            comm, _ = proc_comm_ppid(p)
+        except (OSError, ValueError, IndexError):
+            continue
+        if comm in IGNORE_PROCS:
+            on = True
+            break
+        try:
+            args = open(f"{PROC}/{p}/cmdline", "rb").read().split(b"\0")[:2]
+        except OSError:
+            continue
+        if any(os.path.basename(a.decode(errors="replace")) in IGNORE_PROCS for a in args):
+            on = True
+            break
+    _ignore_seen.update(t=now, on=on)
+    return on
+
+
 def is_ignored(pid, limit=15):
     """Hoort dit proces (of een voorouder) bij IGNORE_PROCS? Kijkt naar de procesnaam en naar de
     opdrachtregel, voor scripts die als `bash /pad/naar/cache_dirs` gestart zijn."""
@@ -539,6 +572,10 @@ def handle(line):
         resolve_shfs_later(ts, pid, op, path)
         return
     src = classify(pid, comm)
+    # Cache Dirs draait find zo kort dat fatrace soms alleen nog "unknown" ziet en de ouders weg zijn.
+    # find opent alleen mappen: een map-open door een al gestopt proces zonder bron telt dan niet mee.
+    if src and src[0] == "onbekend" and op == "geopend" and path.endswith("/") and ignore_active():
+        return
     if src:
         write_who(ts, *src, pid, op, path)
 
