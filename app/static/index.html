@@ -38,9 +38,16 @@ h2{font-size:1rem;margin:0 0 14px;font-weight:600}
 button,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 
-.top{display:flex;flex-wrap:wrap;gap:16px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:24px}
+/* kop: titel met taalkeuze rechts, daaronder altijd op een eigen regel de periode- en bladerknoppen */
+.top{margin-bottom:24px}
 .top p{margin:4px 0 0}
-.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.head select{flex:none;margin-top:4px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;min-height:38px}
+.seg button{white-space:nowrap}
+/* smal scherm: de periodeknoppen scrollen horizontaal in plaats van hun tekst af te breken */
+#ranges{max-width:100%;overflow-x:auto;scrollbar-width:none}
+#ranges::-webkit-scrollbar{display:none}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
 .seg button{border:0;background:none;padding:7px 12px;cursor:pointer;color:var(--muted)}
 .seg button+button{border-left:1px solid var(--line)}
@@ -214,10 +221,19 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 <body>
 <div class="wrap">
   <header class="top">
-    <div>
-      <h1 data-i18n="heading">When do my drives spin</h1>
-      <p id="sourceLine" class="muted" hidden></p>
-      <p class="muted loading-text" id="loaderLine"><span class="spinner" aria-hidden="true"></span><span id="loaderText" aria-live="polite" data-i18n="loading">Loading data</span></p>
+    <div class="head">
+      <div>
+        <h1 data-i18n="heading">When do my drives spin</h1>
+        <p id="sourceLine" class="muted" hidden></p>
+        <p class="muted loading-text" id="loaderLine"><span class="spinner" aria-hidden="true"></span><span id="loaderText" aria-live="polite" data-i18n="loading">Loading data</span></p>
+      </div>
+      <select id="lang" data-i18n-aria="language">
+        <option value="en">English</option>
+        <option value="nl">Nederlands</option>
+        <option value="fr">Français</option>
+        <option value="de">Deutsch</option>
+        <option value="es">Español</option>
+      </select>
     </div>
     <div class="controls">
       <div class="seg" role="group" data-i18n-aria="period" id="ranges" hidden>
@@ -232,13 +248,6 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
         <button id="now" data-i18n="now">Now</button>
         <button id="next">›</button>
       </div>
-      <select id="lang" data-i18n-aria="language">
-        <option value="en">English</option>
-        <option value="nl">Nederlands</option>
-        <option value="fr">Français</option>
-        <option value="de">Deutsch</option>
-        <option value="es">Español</option>
-      </select>
     </div>
   </header>
 

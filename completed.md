@@ -2,6 +2,10 @@
 
 Newest first.
 
+## 2026-10-12: fixed header layout
+- Language choice top right next to the title; period and browse buttons always on their own row below it, so the menu no longer jumps when switching period
+- On narrow screens the period buttons scroll horizontally instead of breaking their labels
+
 ## 2026-10-12: Cache Dirs scans of large folder trees
 - Folder opens by an already stopped process without a source are not logged while Cache Dirs runs. fatrace reported these `find` runs as `unknown`, which slipped past the filter: on a real day 98.5% of all lines (46 MB of 46.5 MB), and the main reason the dashboard loaded slowly
 
