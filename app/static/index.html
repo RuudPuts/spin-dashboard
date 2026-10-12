@@ -69,7 +69,6 @@ button,select{font:inherit;color:inherit}
 .skel .bars{flex:1;display:flex;align-items:flex-end;gap:5px}
 .skel .bars .sk{flex:1;border-radius:3px 3px 0 0}
 @media (max-width:820px){.skel .sk-lane{grid-template-columns:4rem 1fr}.skel .sk-lane .sk:last-child{display:none}}
-#dash.busy{opacity:.55;transition:opacity .2s}
 @media (prefers-reduced-motion:no-preference){
   .spinner{animation:spin .8s linear infinite}
   .topbar.indeterminate i{animation:slide 1.2s ease-in-out infinite}
@@ -323,7 +322,7 @@ const LIVE = 'live';
 const WRITES = /MODIFY|CREATE|DELETE|MOVED_TO|WRITE/;
 
 let data = null;   // {disks:{dev:[{t,st}]}, names:{dev:name}, act:[{t,disk,ev,path}], source, demo}
-let range = '7';
+let range = '1';   // standaard de laatste 24 uur
 let offset = 0;    // aantal periodes terug in de tijd (0 = tot nu)
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1322,7 +1321,7 @@ async function load(text, source, demo=false, keepRange=false, step=null){
   if (step) await step(.96, 'loadingRender');
   data = {disks: toTransitions(ev), names, act: merged, who: indexWho(who), source, demo};
   const ts = ev.map(e => e.t), span = Math.max(...ts) - Math.min(...ts);
-  if (!keepRange){ range = span > 7*DAY ? '7' : 'all'; offset = 0; }
+  if (!keepRange){ range = '1'; offset = 0; }
   show();
   return true;
 }
@@ -1516,22 +1515,34 @@ async function fetchLive(){
   if (!idx || !idx.days || !idx.days.length) return 'missing';
   index = idx;
   for (const d of [...dayTexts.keys()]) if (!idx.days.includes(d)) dayTexts.delete(d);   // opgeruimd
-  if (first){ range = idx.days.length > 7 ? '7' : 'all'; offset = 0; }
+  if (first){ range = '1'; offset = 0; }
   // eerste lading: 0-80% downloaden, daarna verwerken; verversen gebeurt stil
   const changed = await fetchDays(neededDays(), first ? (frac, text) => setProgress(.8 * frac, text) : null);
   if (!first && !changed) return 'ok';
+  if (navBusy){ pendingRebuild = true; return 'ok'; }   // een wissel is bezig; die verwerkt het mee
   const step = first ? async (frac, key) => { setProgress(frac, t(key)); await nextFrame(); } : null;
   return (await rebuild(step)) ? 'ok' : 'empty';
 }
 // Periode of venster wijzigen; ontbrekende dagen eerst ophalen (voortgang in de regel onder de titel)
+// Bij elke wissel: skelet en laadbalk, ontbrekende dagen ophalen, verwerken en tekenen.
+// Bij snel achter elkaar klikken wint de laatste klik; de minuten-verversing wacht tot de wissel klaar is.
+let navSeq = 0, navBusy = false, pendingRebuild = false;
 async function navigate(change){
   change();
-  const missing = index && data && data.source === LIVE ? neededDays().filter(d => !dayTexts.has(d)) : [];
-  if (!missing.length){ render(); return; }
-  $('dash').classList.add('busy');
-  await fetchDays(missing, (frac, text) => { $('sourceLine').textContent = text; });
-  await rebuild(null);
-  $('dash').classList.remove('busy');
+  if (!(index && data && data.source === LIVE)){ render(); return; }     // demo: alles staat al klaar
+  const seq = ++navSeq;
+  navBusy = true;
+  document.querySelectorAll('[data-range]').forEach(btn => btn.setAttribute('aria-pressed', btn.dataset.range === range));
+  $('dash').hidden = true; loading(true);
+  const missing = neededDays().filter(d => !dayTexts.has(d));
+  setProgress(missing.length ? 0 : .85, t(missing.length ? 'loadingIndex' : 'loadingRender'));
+  if (missing.length) await fetchDays(missing, (frac, text) => { if (seq === navSeq) setProgress(.8 * frac, text); });
+  else await nextFrame();
+  if (seq !== navSeq) return;                                            // ingehaald door een nieuwere klik
+  const step = async (frac, key) => { setProgress(frac, t(key)); await nextFrame(); };
+  if (missing.length || pendingRebuild){ pendingRebuild = false; await rebuild(step); }
+  else show();
+  if (seq === navSeq) navBusy = false;
 }
 let lastStatus = null;
 function showStatus(result){

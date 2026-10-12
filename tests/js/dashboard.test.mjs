@@ -173,26 +173,31 @@ test('every language has the same keys as English', async () => {
 const day = 24 * 60;
 const SPREAD = served({ [today]: [`${ep(40 * day)},disk,sdd,disk1`, ...[40, 35, 9, 8.9, 1.5, 1.4, 0.2, 0.1].map((d, i) =>
   `${ep(d * day)},spin,sdd,${i % 2 ? 'standby' : 'active'}`)] });
-const click = (d, sel) => d.querySelector(sel).click();
+// een wissel toont eerst het skelet; wacht tot het dashboard terug is
+const settle = async (d) => {
+  for (let i = 0; i < 150 && (d.getElementById('dash').hidden || !d.getElementById('loader').hidden); i++)
+    await new Promise((r) => setTimeout(r, 20));
+};
+const click = async (d, sel) => { d.querySelector(sel).click(); await settle(d); };
 const upTimes = (d) => rows(d).filter((x) => /Opgespind/.test(x)).length;
 
 test('day view steps one day back and forward', async () => {
   const dom = await load(SPREAD);
   const d = dom.window.document;
-  click(d, '[data-range="1"]');
+  await click(d, '[data-range="1"]');
   assert.equal(d.getElementById('nav').hidden, false);
   assert.equal(d.getElementById('next').disabled, true);
   assert.equal(d.getElementById('now').hidden, false);
   assert.equal(d.getElementById('now').getAttribute('aria-pressed'), 'true');
   assert.equal(upTimes(d), 1);                          // 0,2 dag geleden
-  click(d, '#prev');
+  await click(d, '#prev');
   assert.equal(upTimes(d), 1);                          // 1,5 dag geleden
   assert.equal(d.getElementById('next').disabled, false);
   assert.equal(d.getElementById('now').getAttribute('aria-pressed'), 'false');
   assert.equal(d.getElementById('prev').getAttribute('aria-label'), 'Vorige dag');
-  click(d, '#prev');
+  await click(d, '#prev');
   assert.equal(upTimes(d), 0);                          // 2 tot 3 dagen geleden: niets
-  click(d, '#next'); click(d, '#next');
+  await click(d, '#next'); await click(d, '#next');
   assert.equal(d.getElementById('next').disabled, true);
   assert.equal(upTimes(d), 1);
   dom.window.close();
@@ -201,21 +206,21 @@ test('day view steps one day back and forward', async () => {
 test('week and month views step a whole period, and "now" jumps back', async () => {
   const dom = await load(SPREAD);
   const d = dom.window.document;
-  click(d, '[data-range="7"]');
+  await click(d, '[data-range="7"]');
   assert.equal(upTimes(d), 2);                          // 1,5 en 0,2 dag
-  click(d, '#prev');
+  await click(d, '#prev');
   assert.equal(upTimes(d), 1);                          // 9 dagen
   assert.equal(d.getElementById('prev').getAttribute('aria-label'), 'Vorige week');
-  click(d, '#now');
+  await click(d, '#now');
   assert.equal(upTimes(d), 2);
   assert.equal(d.getElementById('now').getAttribute('aria-pressed'), 'true');
-  click(d, '[data-range="30"]');
+  await click(d, '[data-range="30"]');
   assert.equal(upTimes(d), 3);
-  click(d, '#prev');
+  await click(d, '#prev');
   assert.equal(upTimes(d), 1);                          // 35 dagen; 40 dagen is het begin van de data
   assert.equal(d.getElementById('prev').disabled, true);
   assert.equal(d.getElementById('prev').getAttribute('aria-label'), 'Vorige maand');
-  click(d, '[data-range="all"]');
+  await click(d, '[data-range="all"]');
   assert.equal(d.getElementById('nav').hidden, true);
   assert.equal(upTimes(d), 4);
   dom.window.close();
@@ -275,6 +280,7 @@ test('day files are combined, and a state line is not a spin-up', async () => {
                    `${ep(60)},spin,sdd,standby`],
   }));
   const d = dom.window.document;
+  await click(d, '[data-range="all"]');                  // de spin-up van gisteren valt buiten de 24 uur
   const r = rows(d);
   assert.equal(r.filter((x) => /Opgespind/.test(x)).length, 1, r.join('\n'));   // alleen die van gisteren
   assert.equal(r.filter((x) => /Naar standby/.test(x)).length, 2);
@@ -495,18 +501,25 @@ test('only the days of the shown period are fetched; browsing back loads the res
   const d = dom.window.document;
   const fetchedDays = () => dom.window.__fetched.filter((u) => u.includes('/days/')).map((u) => u.match(/(\d{4}-\d{2}-\d{2})/)[1]);
   const names = Object.keys(days);
-  // 7 dagen + een dag marge: de 3 oudste dagen zijn niet opgehaald
+  // standaard 24 uur: vandaag, gisteren en een dag marge
+  assert.equal(d.querySelector('[data-range="1"]').getAttribute('aria-pressed'), 'true');
+  assert.deepEqual(fetchedDays().sort(), names.slice(9));
+  assert.equal(upTimes(d), 1);
+  d.querySelector('[data-range="7"]').click();          // wissel: skelet en laadbalk, de knop is meteen actief
+  assert.equal(d.getElementById('dash').hidden, true);
+  assert.equal(d.getElementById('loader').hidden, false);
+  assert.equal(d.getElementById('loaderBar').hidden, false);
   assert.equal(d.querySelector('[data-range="7"]').getAttribute('aria-pressed'), 'true');
+  await settle(d);
   assert.deepEqual(fetchedDays().sort(), names.slice(3));
   assert.equal(upTimes(d), 7);
-  click(d, '#prev');                                     // week terug: de oudere dagen worden bijgeladen
-  await new Promise((r) => setTimeout(r, 100));
+  await click(d, '#prev');                               // week terug: de oudere dagen worden bijgeladen
   assert.deepEqual(fetchedDays().sort(), names);
   assert.equal(upTimes(d), 5);                           // 7 t/m 11 dagen geleden
-  assert.equal(d.getElementById('dash').classList.contains('busy'), false);
   const before = fetchedDays().length;
-  click(d, '[data-range="all"]');                        // alles staat al in het geheugen
-  await new Promise((r) => setTimeout(r, 50));
+  d.querySelector('[data-range="all"]').click();         // alles staat al in het geheugen: toch even het skelet
+  assert.equal(d.getElementById('loader').hidden, false);
+  await settle(d);
   assert.equal(fetchedDays().length, before);
   assert.equal(upTimes(d), 12);
   dom.window.close();

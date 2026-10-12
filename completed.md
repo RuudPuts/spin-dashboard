@@ -3,6 +3,8 @@
 Newest first.
 
 ## 2026-10-12: processing 60× faster, new loading screen
+- The dashboard opens in the 24-hour view (3 day files instead of 9 on first load)
+- Switching period or browsing back and forward shows the skeleton and the loading bar again, with the chosen button highlighted right away
 - Finding the source of an access (`nearestWho`) scanned the whole list for a path on every call, which made processing quadratic; with 110,000 real lines it took about 2 minutes in jsdom. The who index is now sorted per path with a separate index for SMB/NFS shares, and lookups use binary search: under 2 seconds in jsdom
 - The live stream inserts new lines in place instead of re-sorting all activity, and redraws at most every 300 ms after the first event
 - Loading screen: a thin progress bar at the top, the current step under the title and a shimmering skeleton of the dashboard, instead of a separate panel

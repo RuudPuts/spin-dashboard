@@ -57,7 +57,10 @@ always today and yesterday for the live feed. Fetched days stay in memory; brows
 choosing "All" fetches the missing days on demand. Every minute it refetches `days.json` and the
 live days (conditionally, 304 when unchanged). It merges `activity` lines (old inotify data) and `who` lines into one activity stream
 and links it to spin-ups. `state` lines set the state but are never a spin-up. The period is
-last hour, 24 hours, 7 days, 30 days or all; `offset` shifts the window back by whole periods.
+last hour, 24 hours (the default), 7 days, 30 days or all; `offset` shifts the window back by whole
+periods. Every switch shows the skeleton and the loading bar while missing days are fetched and the
+data is processed; a newer click overtakes an older one, and the minute refresh waits until a switch
+is done.
 Texts come from `I18N` (en, nl, fr, de, es) via `t()`; dates via `Intl` in the locale of the chosen
 language. The `(al gestopt)` suffix in who lines is translated when shown; the data format itself
 stays unchanged.
