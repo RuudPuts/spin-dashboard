@@ -2,6 +2,9 @@
 
 Newest first.
 
+## 2026-10-16: README screenshots
+- New README screenshots of the current dashboard (sample data, 7 days, light and dark), and a light version of the Active drives / Live activity screenshot
+
 ## 2026-10-16: hidden paths
 - Settings › Hidden paths: one wildcard pattern per line (`*` anything, `?` one character), remembered per browser (`spindash.hide`)
 - `/mnt/user/appdata/*` also hides the same files seen as `/mnt/<pool>/appdata/...`; a pattern without a leading slash matches inside the share (`*.log`, `appdata/plex/*`)

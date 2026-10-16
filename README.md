@@ -4,7 +4,7 @@ See when your hard drives spin up and down, and **why**.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-dark.png">
-  <img alt="Spin Dashboard: a timeline per disk with every spin-up, spin-ups per hour of day, what wakes the drives and a table of events with the cause of each spin-up" src="docs/images/screenshot-light.png">
+  <img alt="Spin Dashboard: a timeline per lane with every spin-up, spin-ups per hour of day, what wakes the drives, the active drives, live activity and a table of events with the cause of each spin-up" src="docs/images/screenshot-light.png">
 </picture>
 
 - A timeline per disk: every spin-up, how long it ran, how much of the day the disk was active.
@@ -23,7 +23,7 @@ See when your hard drives spin up and down, and **why**.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/active-drives-live-activity.png">
-  <img alt="Active drives: per drive the top write and read sources and files, and a live activity feed of the most recent file events" src="docs/images/active-drives-live-activity.png">
+  <img alt="Active drives: per drive the top write and read sources and files, and a live activity feed of the most recent file events" src="docs/images/active-drives-live-activity-light.png">
 </picture>
 
 ## Install
