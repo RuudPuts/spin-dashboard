@@ -2,6 +2,12 @@
 
 Newest first.
 
+## 2026-10-16: hidden paths
+- Settings › Hidden paths: one wildcard pattern per line (`*` anything, `?` one character), remembered per browser (`spindash.hide`)
+- `/mnt/user/appdata/*` also hides the same files seen as `/mnt/<pool>/appdata/...`; a pattern without a leading slash matches inside the share (`*.log`, `appdata/plex/*`)
+- Hidden activity disappears from the feed, Active drives, the rankings, session lists and spin-up causes, also when it streams in live. The day files stay complete
+- The field shows how many file events are hidden
+
 ## 2026-10-16: pools and the array as one lane
 - Each pool and the array show as one lane, one event row and one entry in the disk filter. A pool lists its member devices under the name, the array its number of drives
 - A combined lane spins when any of its drives spins; the tooltip says how many were spinning at most, e.g. "spinning (2 of 3)"

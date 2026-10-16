@@ -39,6 +39,9 @@ The card layout from Settings is stored per browser under `spindash.cards`: a JS
 `{id, hidden}` in display order (ids `lanes`, `hist`, `causes`, `act`, `feed`, `events`); unknown ids are
 ignored and missing cards are added at the end. Lane grouping is stored under `spindash.group` as
 `{merge}` (default `true`, pools and the array together); it only changes the view, the day files stay per drive.
+Hidden paths are stored under `spindash.hide` as a JSON list of patterns (`*` anything, `?` one character).
+A pattern with a leading `/` matches the full path and its `/mnt/user/...` form; without it, the path inside
+the share. Hidden activity is filtered out after loading (`data.allAct` → `data.act`), also for live events.
 
 ## Testing on Unraid
 

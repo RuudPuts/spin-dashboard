@@ -72,6 +72,10 @@ dialog.settings::backdrop{background:rgba(10,15,20,.45)}
 .set-note{font-size:0.8125rem;margin:0 0 6px}
 .set-check{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer}
 .set-check input{accent-color:var(--spin);width:18px;height:18px;margin:0;flex:none}
+.set-text{display:block;width:100%;min-height:4.5em;margin:4px 0 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--ink);font:0.8125rem/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;resize:vertical}
+#hideCount{margin-top:6px}
+#hideCount:empty{display:none}
 .set-cards{list-style:none;margin:0 0 16px;padding:0}
 .set-cards li{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
 .set-cards label{display:flex;align-items:center;gap:10px;flex:1;min-width:0;min-height:44px;cursor:pointer}
@@ -374,6 +378,10 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
   </label>
   <h3 class="set-sub" data-i18n="viewTitle">Drives</h3>
   <label class="set-check"><input type="checkbox" id="groupDrives"> <span data-i18n="groupDrives">Show pools and arrays merged</span></label>
+  <h3 class="set-sub" id="hideTitle" data-i18n="hideTitle">Hidden paths</h3>
+  <p class="muted set-note" id="hideHelp" data-i18n="hideHelp">One path per line. * matches anything, ? one character. Example: /mnt/user/appdata/*</p>
+  <textarea id="hidePaths" class="set-text" rows="3" spellcheck="false" autocapitalize="off" autocomplete="off" aria-labelledby="hideTitle" aria-describedby="hideHelp hideCount"></textarea>
+  <p class="muted set-note" id="hideCount" aria-live="polite"></p>
   <h3 class="set-sub" data-i18n="cardsTitle">Cards</h3>
   <p class="muted set-note" data-i18n="cardsNote">Choose which cards to show and in which order.</p>
   <ol class="set-cards" id="cardList"></ol>
@@ -410,7 +418,7 @@ const I18N = {
     prev_30:'Previous month', next_30:'Next month',
     settings:'Settings', done:'Done', cardsTitle:'Cards', cardsNote:'Choose which cards to show and in which order.', moveUp:'Move {name} up', moveDown:'Move {name} down', movedTo:'{name}: position {n} of {total}', resetCards:'Restore default layout',
     viewTitle:'Drives', groupDrives:'Show pools and arrays merged', arrayName:'Array', disk_one:'{n} drive', disk_other:'{n} drives', upOf:'({n} of {total})',
-    allPools:'All pools', allDisksPools:'All drives and pools', dragToMove:'Drag to move', traceHint:'Use the left and right arrow keys to step through the periods.', noDataYet:'No data yet', noData:'No data', lanes:'Timeline per disk',
+    allPools:'All pools', allDisksPools:'All drives and pools', dragToMove:'Drag to move', hideTitle:'Hidden paths', hideHelp:'One path per line. * matches anything, ? one character. Example: /mnt/user/appdata/*', hideCount:'{n} of {total} file events hidden', traceHint:'Use the left and right arrow keys to step through the periods.', noDataYet:'No data yet', noData:'No data', lanes:'Timeline per disk',
     legSpin:'Spinning', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups by hour of day', causesTitle:'What wakes the drives', eventsTitle:'Events',
     onlyUp:'Spin-ups only', devFilter:'Filter by disk', allDisks:'All disks',
@@ -457,7 +465,7 @@ const I18N = {
     prev_30:'Vorige maand', next_30:'Volgende maand',
     settings:'Instellingen', done:'Klaar', cardsTitle:'Kaartjes', cardsNote:'Kies welke kaartjes je ziet en in welke volgorde.', moveUp:'{name} omhoog', moveDown:'{name} omlaag', movedTo:'{name}: plaats {n} van {total}', resetCards:'Standaardindeling herstellen',
     viewTitle:'Schijven', groupDrives:'Pools en arrays samengevoegd tonen', arrayName:'Array', disk_one:'{n} schijf', disk_other:'{n} schijven', upOf:'({n} van {total})',
-    allPools:'Alle pools', allDisksPools:'Alle schijven en pools', dragToMove:'Sleep om te verplaatsen', traceHint:'Gebruik de pijltjestoetsen links en rechts om door de periodes te stappen.', noDataYet:'Nog geen data', noData:'Geen data', lanes:'Tijdlijn per schijf',
+    allPools:'Alle pools', allDisksPools:'Alle schijven en pools', dragToMove:'Sleep om te verplaatsen', hideTitle:'Verborgen paden', hideHelp:'Eén pad per regel. * staat voor alles, ? voor één teken. Bijvoorbeeld: /mnt/user/appdata/*', hideCount:'{n} van {total} bestandsgebeurtenissen verborgen', traceHint:'Gebruik de pijltjestoetsen links en rechts om door de periodes te stappen.', noDataYet:'Nog geen data', noData:'Geen data', lanes:'Tijdlijn per schijf',
     legSpin:'Draait', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups per uur van de dag', causesTitle:'Wat maakt de schijven wakker', eventsTitle:'Gebeurtenissen',
     onlyUp:'Alleen spin-ups', devFilter:'Filter op schijf', allDisks:'Alle schijven',
@@ -504,7 +512,7 @@ const I18N = {
     prev_30:'Mois précédent', next_30:'Mois suivant',
     settings:'Réglages', done:'Terminé', cardsTitle:'Cartes', cardsNote:'Choisissez les cartes à afficher et leur ordre.', moveUp:'Monter {name}', moveDown:'Descendre {name}', movedTo:'{name} : position {n} sur {total}', resetCards:'Rétablir la disposition par défaut',
     viewTitle:'Disques', groupDrives:'Afficher les pools et arrays regroupés', arrayName:'Array', disk_one:'{n} disque', disk_other:'{n} disques', upOf:'({n} sur {total})',
-    allPools:'Tous les pools', allDisksPools:'Tous les disques et pools', dragToMove:'Faites glisser pour déplacer', traceHint:'Utilisez les flèches gauche et droite pour parcourir les périodes.', noDataYet:'Pas encore de données', noData:'Aucune donnée', lanes:'Chronologie par disque',
+    allPools:'Tous les pools', allDisksPools:'Tous les disques et pools', dragToMove:'Faites glisser pour déplacer', hideTitle:'Chemins masqués', hideHelp:'Un chemin par ligne. * remplace n’importe quoi, ? un seul caractère. Exemple : /mnt/user/appdata/*', hideCount:'{n} sur {total} événements de fichiers masqués', traceHint:'Utilisez les flèches gauche et droite pour parcourir les périodes.', noDataYet:'Pas encore de données', noData:'Aucune donnée', lanes:'Chronologie par disque',
     legSpin:'En rotation', legIdle:'Veille', legUp:'Démarrage',
     histTitle:'Démarrages par heure de la journée', causesTitle:'Ce qui réveille les disques', eventsTitle:'Événements',
     onlyUp:'Démarrages uniquement', devFilter:'Filtrer par disque', allDisks:'Tous les disques',
@@ -551,7 +559,7 @@ const I18N = {
     prev_30:'Vorheriger Monat', next_30:'Nächster Monat',
     settings:'Einstellungen', done:'Fertig', cardsTitle:'Karten', cardsNote:'Wähle, welche Karten angezeigt werden und in welcher Reihenfolge.', moveUp:'{name} nach oben', moveDown:'{name} nach unten', movedTo:'{name}: Position {n} von {total}', resetCards:'Standardanordnung wiederherstellen',
     viewTitle:'Festplatten', groupDrives:'Pools und Arrays zusammengefasst anzeigen', arrayName:'Array', disk_one:'{n} Festplatte', disk_other:'{n} Festplatten', upOf:'({n} von {total})',
-    allPools:'Alle Pools', allDisksPools:'Alle Festplatten und Pools', dragToMove:'Zum Verschieben ziehen', traceHint:'Mit den Pfeiltasten links und rechts gehst du die Zeitabschnitte durch.', noDataYet:'Noch keine Daten', noData:'Keine Daten', lanes:'Zeitleiste pro Festplatte',
+    allPools:'Alle Pools', allDisksPools:'Alle Festplatten und Pools', dragToMove:'Zum Verschieben ziehen', hideTitle:'Ausgeblendete Pfade', hideHelp:'Ein Pfad pro Zeile. * steht für alles, ? für ein Zeichen. Beispiel: /mnt/user/appdata/*', hideCount:'{n} von {total} Dateiereignissen ausgeblendet', traceHint:'Mit den Pfeiltasten links und rechts gehst du die Zeitabschnitte durch.', noDataYet:'Noch keine Daten', noData:'Keine Daten', lanes:'Zeitleiste pro Festplatte',
     legSpin:'Läuft', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups nach Tageszeit', causesTitle:'Was weckt die Festplatten', eventsTitle:'Ereignisse',
     onlyUp:'Nur Spin-ups', devFilter:'Nach Festplatte filtern', allDisks:'Alle Festplatten',
@@ -598,7 +606,7 @@ const I18N = {
     prev_30:'Mes anterior', next_30:'Mes siguiente',
     settings:'Ajustes', done:'Listo', cardsTitle:'Tarjetas', cardsNote:'Elige qué tarjetas ver y en qué orden.', moveUp:'Subir {name}', moveDown:'Bajar {name}', movedTo:'{name}: posición {n} de {total}', resetCards:'Restaurar la disposición predeterminada',
     viewTitle:'Discos', groupDrives:'Mostrar pools y arrays agrupados', arrayName:'Array', disk_one:'{n} disco', disk_other:'{n} discos', upOf:'({n} de {total})',
-    allPools:'Todos los pools', allDisksPools:'Todos los discos y pools', dragToMove:'Arrastra para mover', traceHint:'Usa las flechas izquierda y derecha para recorrer los periodos.', noDataYet:'Todavía no hay datos', noData:'Sin datos', lanes:'Cronología por disco',
+    allPools:'Todos los pools', allDisksPools:'Todos los discos y pools', dragToMove:'Arrastra para mover', hideTitle:'Rutas ocultas', hideHelp:'Una ruta por línea. * sustituye cualquier cosa, ? un solo carácter. Ejemplo: /mnt/user/appdata/*', hideCount:'{n} de {total} eventos de archivos ocultos', traceHint:'Usa las flechas izquierda y derecha para recorrer los periodos.', noDataYet:'Todavía no hay datos', noData:'Sin datos', lanes:'Cronología por disco',
     legSpin:'Girando', legIdle:'Reposo', legUp:'Arranque',
     histTitle:'Arranques por hora del día', causesTitle:'Qué despierta los discos', eventsTitle:'Eventos',
     onlyUp:'Solo arranques', devFilter:'Filtrar por disco', allDisks:'Todos los discos',
@@ -843,6 +851,27 @@ function pickCause(hits){
 
 /* ---------- oorzaak zoeken rond een spin-up ---------- */
 const hasAct = () => data.act && data.act.length > 0;
+
+/* ---------- verborgen paden (instellingen) ---------- */
+// Patronen met * (alles, ook /) en ? (één teken), één per regel, per browser bewaard. Een patroon met
+// een / vooraan geldt voor het volledige pad (/mnt/trunk/...) én de share-vorm (/mnt/user/...); zonder
+// / vooraan voor het pad binnen de share (appdata/plex/...). Verborgen activiteit telt nergens mee,
+// ook niet als oorzaak van een spin-up. Alleen de weergave: de dagbestanden blijven compleet.
+const HIDE_KEY = 'spindash.hide';
+function loadHide(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(HIDE_KEY)); } catch (e) {}
+  return Array.isArray(s) ? s.filter(x => typeof x === 'string' && x.trim()) : [];
+}
+let hidePatterns = loadHide(), hideRes = [];
+const globRe = g => new RegExp('^' + g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$');
+function compileHide(){ hideRes = hidePatterns.map(g => ({abs: g.startsWith('/'), re: globRe(g.replace(/\/+$/, ''))})); }
+compileHide();
+function isHidden(e){
+  if (!hideRes.length) return false;
+  const p = partsOf(e.path), full = '/' + p.join('/'), rel = p.slice(2).join('/'), user = '/mnt/user/' + rel;
+  return hideRes.some(h => h.abs ? h.re.test(full) || h.re.test(user) : h.re.test(rel));
+}
 // Welke activiteit hoort bij deze schijf? Poolleden (trunk2) horen bij de mount (trunk);
 // parity spint alleen op bij writes, dus daarvoor tellen writes op alle schijven.
 function matcherFor(dev){
@@ -1514,7 +1543,7 @@ async function load(text, source, demo=false, keepRange=false, step=null){
   if (step) await step(.88, 'loadingProcess');
   const merged = mergeActivity(act, who);
   if (step) await step(.96, 'loadingRender');
-  data = {disks: toTransitions(ev), names, act: merged, who: indexWho(who), source, demo};
+  data = {disks: toTransitions(ev), names, allAct: merged, act: merged.filter(e => !isHidden(e)), who: indexWho(who), source, demo};
   const ts = ev.map(e => e.t), span = Math.max(...ts) - Math.min(...ts);
   if (!keepRange){ range = '1'; offset = 0; }
   show();
@@ -1533,7 +1562,7 @@ $('now').onclick = () => navigate(() => { offset = 0; });
 $('lang').onchange = () => {
   lang = $('lang').value;
   try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
-  setFormatters(); applyStatic(); renderCardList();
+  setFormatters(); applyStatic(); renderCardList(); $('hideCount').textContent = hideCountText();
   if (data) render(); else if (lastStatus) showStatus(lastStatus);
 };
 applyStatic();
@@ -1631,6 +1660,7 @@ $('resetCards').onclick = () => {
 // <dialog> met showModal waar het kan; anders (oude browsers, jsdom) gewoon het open-attribuut
 function openSettings(){
   renderCardList();
+  $('hideCount').textContent = hideCountText();
   const d = $('settings');
   if (d.showModal) d.showModal(); else d.setAttribute('open', '');
   $('openSettings').setAttribute('aria-expanded', 'true');
@@ -1652,6 +1682,22 @@ $('settings').addEventListener('click', e => {
 applyCards();
 
 // pools/array samenvoegen: onthouden in de browser en meteen opnieuw tekenen
+// verborgen paden: bij typen (even wachten) opnieuw filteren en tekenen
+function hideCountText(){
+  if (!data || !hidePatterns.length) return '';
+  return t('hideCount', {n: data.allAct.length - data.act.length, total: data.allAct.length});
+}
+let hideTimer = null;
+function applyHide(){
+  hidePatterns = $('hidePaths').value.split('\n').map(x => x.trim()).filter(Boolean);
+  try { hidePatterns.length ? localStorage.setItem(HIDE_KEY, JSON.stringify(hidePatterns)) : localStorage.removeItem(HIDE_KEY); } catch (e) {}
+  compileHide();
+  if (data){ data.act = data.allAct.filter(e => !isHidden(e)); render(); }
+  $('hideCount').textContent = hideCountText();
+}
+$('hidePaths').value = hidePatterns.join('\n');
+$('hidePaths').oninput = () => { clearTimeout(hideTimer); hideTimer = setTimeout(applyHide, 400); };
+$('hidePaths').onchange = () => { clearTimeout(hideTimer); applyHide(); };
 $('groupDrives').checked = groupOpt.pools;
 $('groupDrives').onchange = () => {
   const on = $('groupDrives').checked;
@@ -1902,8 +1948,10 @@ function ingestWho(line){
   if (!who.length) return;
   const w0 = who[0];
   addWho(w0);
-  for (const e of mergeActivity([], [w0]))          // zelfde omzetting als bij het laden
-    data.act.splice(lowerBound(data.act, e.t + 1), 0, e);
+  for (const e of mergeActivity([], [w0])){        // zelfde omzetting als bij het laden
+    data.allAct.splice(lowerBound(data.allAct, e.t + 1), 0, e);
+    if (!isHidden(e)) data.act.splice(lowerBound(data.act, e.t + 1), 0, e);
+  }
   scheduleLive();
 }
 // Het eerste event direct tekenen; bij een drukke stroom daarna hooguit eens per 300 ms (de laatste altijd)

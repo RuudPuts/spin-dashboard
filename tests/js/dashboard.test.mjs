@@ -770,3 +770,48 @@ test('the timeline card has a heading like the other cards', async () => {
   assert.equal(d.getElementById(card.getAttribute('aria-labelledby')), card.querySelector('h2'));
   dom.window.close();
 });
+
+// ---------- verborgen paden ----------
+const setHide = (d, w, value) => { const ta = d.getElementById('hidePaths'); ta.value = value; ta.dispatchEvent(new w.Event('change')); };
+const feedText = (d) => [...d.querySelectorAll('#feed li')].map(text).join('\n');
+
+test('hidden paths with a wildcard disappear from the feed, rankings and causes', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document, w = dom.window;
+  assert.match(feedText(d), /a\.mkv/);
+  assert.match(text(d.getElementById('causes')), /Media\/series/);
+  setHide(d, w, '/mnt/user/Media/series/*\n');            // share-vorm, ook al staat het als /mnt/trunk/... in de data
+  assert.doesNotMatch(feedText(d), /series/);
+  assert.match(feedText(d), /SMB-share/);                  // de rest blijft staan
+  assert.doesNotMatch(text(d.getElementById('causes')), /Media\/series/);
+  assert.doesNotMatch(rows(d).join('\n'), /a\.mkv/);
+  assert.match(d.getElementById('hideCount').textContent, /^2 van \d+ bestandsgebeurtenissen verborgen$/);
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.hide')), ['/mnt/user/Media/series/*']);
+  setHide(d, w, '');                                       // leeg: alles terug en niets meer bewaard
+  assert.match(feedText(d), /a\.mkv/);
+  assert.equal(w.localStorage.getItem('spindash.hide'), null);
+  assert.equal(d.getElementById('hideCount').textContent, '');
+  dom.window.close();
+});
+
+test('a pattern without a leading slash matches inside the share, and saved patterns apply on load', async () => {
+  const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.hide', JSON.stringify(['*.mkv'])));
+  const d = dom.window.document;
+  assert.equal(d.getElementById('hidePaths').value, '*.mkv');
+  assert.doesNotMatch(feedText(d), /\.mkv/);
+  assert.match(feedText(d), /SMB-share/);
+  dom.window.close();
+});
+
+test('a hidden path does not show up when it streams in live', async () => {
+  const dom = await loadWithStream(RW);
+  const d = dom.window.document, w = dom.window;
+  setHide(d, w, '/mnt/user/appdata/radarr/*');
+  const now = Math.floor(Date.now() / 1000);
+  w.__push(`${now},who,container,radarr,99,geschreven,/mnt/trunk/appdata/radarr/radarr.db`);
+  w.__push(`${now},who,container,sonarr,98,geschreven,/mnt/trunk/appdata/sonarr/sonarr.db`);
+  await new Promise((r) => setTimeout(r, 400));
+  assert.doesNotMatch(feedText(d), /radarr\.db/);
+  assert.match(feedText(d), /sonarr\.db/);
+  dom.window.close();
+});
