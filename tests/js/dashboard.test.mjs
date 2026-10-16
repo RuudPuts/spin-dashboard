@@ -97,7 +97,7 @@ test('session list collapses SMB access to one entry per share', async () => {
 test('"Door wie" ranks sources of spin-ups', async () => {
   const dom = await load(POOL);
   const causes = text(dom.window.document.getElementById('causes'));
-  assert.match(causes, /Media\/series 1 Door wie bazarr 1/);
+  assert.match(causes, /Media\/series 1 Door wie container: bazarr 1/);   // soort als tekst voor schermlezers
   dom.window.close();
 });
 
@@ -530,5 +530,154 @@ test('loading finishes in a hidden tab, where requestAnimationFrame never fires'
   const d = dom.window.document;
   assert.equal(d.getElementById('dash').hidden, false);
   assert.equal(d.getElementById('loader').hidden, true);
+  dom.window.close();
+});
+
+// ---------- toegankelijkheid ----------
+// WCAG-contrast tussen twee hexkleuren
+const lum = (hex) => {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+};
+const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const tokens = (block) => Object.fromEntries([...block.matchAll(/--([\w-]+):(#[0-9A-Fa-f]{6})/g)].map((m) => [m[1], m[2]]));
+
+test('text and badge colours reach 4.5:1 in the light and dark theme', () => {
+  const light = tokens(HTML.match(/:root\{([^}]*)\}/)[1]);
+  const dark = tokens(HTML.match(/:root\[data-theme="dark"\]\{([^}]*)\}/)[1]);
+  const pairs = [['ink', 'panel'], ['ink', 'bg'], ['muted', 'panel'], ['muted', 'bg'], ['up-text', 'panel'], ['up-text', 'bg'],
+    ['on-accent', 'up-text'], ['on-accent', 'muted'], ['on-accent', 'spin']];
+  for (const [name, th] of [['light', light], ['dark', dark]]) {
+    for (const [fg, bg] of pairs) {
+      const r = contrast(th[fg], th[bg]);
+      assert.ok(r >= 4.5, `${name}: --${fg} on --${bg} is ${r.toFixed(2)}:1`);
+    }
+  }
+});
+
+test('font sizes are set in rem so they follow the browser text size', () => {
+  assert.doesNotMatch(HTML, /font-size:\s*\d+(\.\d+)?px/);
+  assert.doesNotMatch(HTML.match(/<style>[\s\S]*<\/style>/)[0], /font:[^;}]*\d+px/);
+});
+
+test('a lane can be read with the keyboard: arrow keys step through its periods', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document, w = dom.window;
+  const tr = d.querySelector('.trace');
+  assert.equal(tr.getAttribute('tabindex'), '0');
+  assert.match(tr.getAttribute('aria-label'), /^trunk: 1 spin-ups, \d+% actief$/);
+  assert.equal(d.getElementById(tr.getAttribute('aria-describedby')).textContent, 'Gebruik de pijltjestoetsen links en rechts om door de periodes te stappen.');
+  assert.equal(tr.querySelector('svg').getAttribute('aria-hidden'), 'true');
+  const key = (k) => tr.dispatchEvent(new w.KeyboardEvent('keydown', { key: k, bubbles: true }));
+  tr.focus();
+  const tip = d.getElementById('tip'), live = d.getElementById('tipLive');
+  key('ArrowRight');
+  assert.equal(tip.hidden, false);
+  assert.match(live.textContent, /^trunk, in standby/);
+  for (let n = 0; n < 5 && !/draait/.test(live.textContent); n++) key('ArrowRight');   // naar de spin-up
+  assert.match(live.textContent, /^trunk, draait, .*Gewekt door Media\/series/);
+  key('End'); const last = live.textContent;
+  key('ArrowRight');                                     // voorbij het einde blijft hij staan
+  assert.equal(live.textContent, last);
+  key('Home');
+  assert.match(live.textContent, /^trunk, in standby/);
+  tr.blur();
+  assert.equal(tip.hidden, true);
+  dom.window.close();
+});
+
+test('histogram bars and info icons carry text for screen readers', async () => {
+  const dom = await load(ROOT);
+  const d = dom.window.document;
+  const bars = [...d.querySelectorAll('#hist div')];
+  assert.equal(bars.length, 24);
+  assert.ok(bars.every((b) => b.getAttribute('role') === 'img' && /spin-ups$/.test(b.getAttribute('aria-label'))));
+  assert.equal(d.getElementById('histLabels').getAttribute('aria-hidden'), 'true');
+  assert.equal(d.getElementById('axis').getAttribute('aria-hidden'), 'true');
+  const info = d.querySelector('#causes .info');
+  assert.match(d.getElementById(info.getAttribute('aria-describedby')).textContent, /^Root van een pool betekent/);
+  dom.window.close();
+});
+
+test('the kind of source is named in text, not only by the colour of its dot', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document;
+  const dot = d.querySelector('#causes .kind-dot.container');
+  assert.equal(dot.title, 'container');
+  assert.equal(dot.nextElementSibling.className, 'sr');
+  assert.equal(dot.nextElementSibling.textContent, 'container: ');
+  dom.window.close();
+});
+
+// ---------- instellingen: taal en kaartjes ----------
+const cardOrder = (d) => [...d.querySelectorAll('#dash > [data-card]')].filter((el) => !el.hidden).map((el) => el.dataset.card);
+
+test('the settings button opens a dialog with the language choice and the card list', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document;
+  const gear = d.getElementById('openSettings');
+  assert.equal(gear.getAttribute('aria-label'), 'Instellingen');
+  assert.ok(d.getElementById('settings').contains(d.getElementById('lang')));   // taalkeuze zit in de instellingen
+  gear.click();
+  assert.ok(d.getElementById('settings').hasAttribute('open'));
+  assert.equal(gear.getAttribute('aria-expanded'), 'true');
+  const names = [...d.querySelectorAll('#cardList li label')].map(text);
+  assert.deepEqual(names, ['Tijdlijn per schijf', 'Spin-ups per uur van de dag', 'Wat maakt de schijven wakker',
+    'Actieve schijven', 'Live activiteit', 'Gebeurtenissen']);
+  d.getElementById('settingsDone').click();
+  assert.ok(!d.getElementById('settings').hasAttribute('open'));
+  assert.equal(d.activeElement, gear);                    // focus terug op de knop
+  dom.window.close();
+});
+
+test('cards can be hidden and moved, and the layout is remembered', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document, w = dom.window;
+  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'act', 'feed', 'events']);
+  assert.ok(d.querySelector('[data-card="hist"]').classList.contains('pair'));   // standaard naast elkaar
+  d.getElementById('openSettings').click();
+  const box = d.querySelector('#cardList li[data-card="act"] input');
+  box.checked = false; box.dispatchEvent(new w.Event('change', { bubbles: true }));
+  assert.equal(d.querySelector('#dash > [data-card="act"]').hidden, true);
+  d.querySelector('#cardList li[data-card="events"] [data-move="-1"]').click();   // gebeurtenissen één omhoog
+  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'events', 'feed']);
+  assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="events"] [data-move="-1"]'));
+  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 5 van 6');
+  d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').click();     // de histogram naar boven
+  d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').click();
+  assert.equal(d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').disabled, true);
+  assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="hist"] [data-move="1"]'));   // bovenaan: focus naar omlaag
+  // de histogram staat nu los van "wat maakt wakker": geen paar meer, allebei de volle breedte
+  assert.ok(!d.querySelector('[data-card="hist"]').classList.contains('pair'));
+  const saved = w.localStorage.getItem('spindash.cards');
+  dom.window.close();
+
+  const again = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w2) => w2.localStorage.setItem('spindash.cards', saved));
+  assert.deepEqual(cardOrder(again.window.document), ['hist', 'lanes', 'causes', 'events', 'feed']);
+  again.window.close();
+});
+
+test('a saved layout with unknown or missing cards still shows every known card', async () => {
+  const stored = JSON.stringify([{ id: 'feed' }, { id: 'nope' }, { id: 'feed', hidden: true }, { id: 'hist', hidden: true }]);
+  const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.cards', stored));
+  const d = dom.window.document;
+  assert.deepEqual(cardOrder(d), ['feed', 'lanes', 'causes', 'act', 'events']);
+  assert.ok(!d.querySelector('[data-card="causes"]').classList.contains('pair'));   // halve kaart zonder buur: volle breedte
+  d.getElementById('openSettings').click();
+  d.getElementById('resetCards').click();
+  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'act', 'feed', 'events']);
+  assert.equal(dom.window.localStorage.getItem('spindash.cards'), null);
+  dom.window.close();
+});
+
+test('changing the language in settings also translates the card list', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document, w = dom.window;
+  d.getElementById('openSettings').click();
+  const sel = d.getElementById('lang');
+  sel.value = 'de'; sel.dispatchEvent(new w.Event('change'));
+  assert.equal(text(d.querySelector('#cardList li label')), 'Zeitleiste pro Festplatte');
+  assert.equal(d.getElementById('openSettings').getAttribute('aria-label'), 'Einstellungen');
   dom.window.close();
 });

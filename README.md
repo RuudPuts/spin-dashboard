@@ -15,7 +15,8 @@ See when your hard drives spin up and down, and **why**.
 - Click a spin-up to see every file that was opened during that session, with time and source.
 - Rankings of what wakes your drives, by folder and by source.
 - Browse back and forward through history: the last hour, a day at a time in the 24-hour view, a week in the 7-day view, a month (30 days) in the 30-day view.
-- Available in English, Dutch, French, German and Spanish. Follows your browser language; pick another one at the top right.
+- Available in English, Dutch, French, German and Spanish. Follows your browser language; pick another one under Settings (the gear at the top right).
+- Settings also let you hide cards and change their order; the layout is remembered per browser.
 - Works with the array and with HDD pools (XFS, Btrfs, ZFS). SSD/NVMe pools are ignored.
 
 <picture>

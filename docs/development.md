@@ -34,7 +34,10 @@ PATH=/tmp/sd/bin:$PATH DATA_DIR=/tmp/sd/data EMHTTP_DIR=/tmp/sd/emhttp \
 keeps working. Old-format files (`spin.csv`, `who.csv`, …) placed in `DATA_DIR` are migrated on
 start, which is a quick way to try the dashboard on real data. For the frontend only: open
 `http://localhost:8089/?demo`. Force a language with `?lang=de` (en, nl, fr, de, es); otherwise the
-UI follows the browser language or the last chosen language (`localStorage`).
+UI follows the browser language or the last chosen language (`localStorage`, key `spindash.lang`).
+The card layout from Settings is stored per browser under `spindash.cards`: a JSON list of
+`{id, hidden}` in display order (ids `lanes`, `hist`, `causes`, `act`, `feed`, `events`); unknown ids are
+ignored and missing cards are added at the end.
 
 ## Testing on Unraid
 

@@ -12,24 +12,24 @@
 <style>
 :root{
   --bg:#E9EDF1; --panel:#F7F9FB; --ink:#17212B; --muted:#5B6875; --line:#CBD3DB;
-  --spin:#2458C6; --spin-fill:rgba(36,88,198,.14); --idle:#8C98A4; --up:#B97F00; --focus:#2458C6;
+  --spin:#2458C6; --spin-fill:rgba(36,88,198,.14); --idle:#8C98A4; --up:#B97F00; --up-text:#8A5F00; --on-accent:#FFFFFF; --focus:#2458C6;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --bg:#10161D; --panel:#18212B; --ink:#E3E9EF; --muted:#93A1AE; --line:#2A3642;
-    --spin:#7EA8FF; --spin-fill:rgba(126,168,255,.16); --idle:#5E6B78; --up:#F2B53A; --focus:#7EA8FF;
+    --spin:#7EA8FF; --spin-fill:rgba(126,168,255,.16); --idle:#5E6B78; --up:#F2B53A; --up-text:#F2B53A; --on-accent:#10161D; --focus:#7EA8FF;
   }
 }
 :root[data-theme="dark"]{
   --bg:#10161D; --panel:#18212B; --ink:#E3E9EF; --muted:#93A1AE; --line:#2A3642;
-  --spin:#7EA8FF; --spin-fill:rgba(126,168,255,.16); --idle:#5E6B78; --up:#F2B53A; --focus:#7EA8FF;
+  --spin:#7EA8FF; --spin-fill:rgba(126,168,255,.16); --idle:#5E6B78; --up:#F2B53A; --up-text:#F2B53A; --on-accent:#10161D; --focus:#7EA8FF;
 }
 *,*::before,*::after{box-sizing:inherit}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--ink);
-  font:15px/1.5 "Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font:0.9375rem/1.5 "Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   font-variant-numeric:tabular-nums}
 .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 48px}
 h1{font-size:1.75rem;line-height:1.15;margin:0;font-weight:700;letter-spacing:-.01em}
@@ -42,7 +42,10 @@ button,select{font:inherit;color:inherit}
 .top{margin-bottom:24px}
 .top p{margin:4px 0 0}
 .head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
-.head select{flex:none;margin-top:4px}
+.icon-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;
+  border:1px solid var(--line);background:var(--panel);border-radius:10px;color:var(--muted);cursor:pointer}
+.icon-btn:hover,.icon-btn[aria-expanded="true"]{color:var(--ink);border-color:var(--muted)}
+.icon-btn svg{width:20px;height:20px}
 .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;min-height:38px}
 .seg button{white-space:nowrap}
 /* smal scherm: de periodeknoppen scrollen horizontaal in plaats van hun tekst af te breken */
@@ -53,11 +56,26 @@ button,select{font:inherit;color:inherit}
 .seg button+button{border-left:1px solid var(--line)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .seg button:disabled{opacity:.4;cursor:default}
-.nav button{padding:7px 11px}
+.nav button{padding:7px 11px;min-width:2.25rem}
 .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:7px 14px;cursor:pointer}
-.btn.primary{background:var(--spin);border-color:var(--spin);color:#fff}
-:root[data-theme="dark"] .btn.primary{color:#0c1320}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.primary{color:#0c1320}}
+.btn.primary{background:var(--spin);border-color:var(--spin);color:var(--on-accent)}
+.btn:disabled{opacity:.4;cursor:default}
+
+/* instellingen */
+dialog.settings{width:min(440px, calc(100% - 32px));max-height:calc(100% - 32px);padding:22px;border:1px solid var(--line);
+  border-radius:14px;background:var(--panel);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog.settings::backdrop{background:rgba(10,15,20,.45)}
+.set-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.set-head h2{margin:0;font-size:1.125rem}
+.set-lang{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.set-sub{font-size:0.875rem;font-weight:600;margin:20px 0 2px}
+.set-note{font-size:0.8125rem;margin:0 0 6px}
+.set-cards{list-style:none;margin:0 0 16px;padding:0}
+.set-cards li{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.set-cards label{display:flex;align-items:center;gap:10px;flex:1;min-width:0;min-height:44px;cursor:pointer}
+.set-cards input{accent-color:var(--spin);width:18px;height:18px;margin:0;flex:none}
+.set-move{display:flex;gap:6px;flex:none}
+.set-move .btn{width:34px;height:34px;padding:0;line-height:1}
 
 /* status */
 .status{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:24px;max-width:640px}
@@ -89,41 +107,48 @@ button,select{font:inherit;color:inherit}
 }
 .status h2{margin-bottom:6px}
 .status p{margin:0}
-.status code{font-size:13px}
+.status code{font-size:0.8125rem}
 
 /* lanes */
 .lanes{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 18px 14px}
 .row{display:grid;grid-template-columns:5.5rem 1fr 11rem;gap:14px;align-items:center}
 .axis{height:30px;position:relative}
-.axis span{position:absolute;bottom:4px;transform:translateX(-50%);font-size:12px;color:var(--muted);white-space:nowrap}
+.axis span{position:absolute;bottom:4px;transform:translateX(-50%);font-size:0.75rem;color:var(--muted);white-space:nowrap}
 .lane{padding:6px 0;border-top:1px solid var(--line)}
 .lane:first-of-type{border-top:0}
 .lane-name{font-weight:600}
-.lane-name small{display:block;font-weight:400;color:var(--muted);font-size:12px}
-.trace{position:relative;height:40px;cursor:crosshair}
+.lane-name small{display:block;font-weight:400;color:var(--muted);font-size:0.75rem}
+.trace{position:relative;height:40px;cursor:crosshair;border-radius:4px}
 .trace svg{display:block;width:100%;height:100%;overflow:visible}
 .trace .grid{stroke:var(--line);stroke-width:1}
 .trace .fill{fill:var(--spin-fill)}
 .trace .wave{fill:none;stroke:var(--spin);stroke-width:2;stroke-linejoin:round}
 .trace .marks{stroke:var(--up);stroke-width:2}
 .trace .guess{fill:var(--panel);opacity:.55}
-.lane-stats{display:flex;gap:14px;font-size:13px;color:var(--muted)}
-.lane-stats b{color:var(--ink);font-weight:600;font-size:15px}
-.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:12px}
+.lane-stats{display:flex;gap:14px;font-size:0.8125rem;color:var(--muted)}
+.lane-stats b{color:var(--ink);font-weight:600;font-size:0.9375rem}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:0.7812rem;color:var(--muted);margin-top:12px}
 .legend i{display:inline-block;width:18px;height:10px;margin-right:6px;vertical-align:-1px}
 .lg-spin{background:var(--spin-fill);border-top:2px solid var(--spin)}
 .lg-idle{border-bottom:2px solid var(--spin)}
 .lg-up{width:2px!important;height:12px!important;background:var(--up)}
 
+/* dashboard: kaartjes in de volgorde uit de instellingen; twee halve kaartjes naast elkaar vormen een paar */
+#dash{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+#dash>.card{grid-column:1/-1;min-width:0}
+#dash>.card.pair{grid-column:auto}
 .lower{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
-.events-panel{margin-top:20px}
-.filters{display:flex;gap:14px;align-items:center;font-size:13.5px;color:var(--muted)}
-.filters input{accent-color:var(--spin);margin:0 5px 0 0;vertical-align:-2px}
-.cause-row{display:grid;grid-template-columns:minmax(7rem,11rem) 1fr 2.2rem;gap:10px;align-items:center;padding:5px 0;font-size:13.5px}
+.filters{display:flex;gap:14px;align-items:center;font-size:0.8438rem;color:var(--muted)}
+/* het label is het klikvlak: minstens 28px hoog, zodat het vinkje ook op een telefoon raak is */
+.filters label{display:inline-flex;align-items:center;min-height:28px;cursor:pointer}
+.filters input{accent-color:var(--spin);margin:0 6px 0 0;width:16px;height:16px}
+.cause-row{display:grid;grid-template-columns:minmax(7rem,11rem) 1fr 2.2rem;gap:10px;align-items:center;padding:5px 0;font-size:0.8438rem}
 .cause-name{display:flex;align-items:center;gap:6px;min-width:0}
 .cause-name .cn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.info{flex:none;width:16px;height:16px;padding:0;border:1px solid var(--muted);border-radius:50%;background:none;
-  color:var(--muted);font:italic 600 10.5px/14px Georgia,serif;text-align:center;cursor:help}
+.info{position:relative;flex:none;width:1rem;height:1rem;padding:0;border:1px solid var(--muted);border-radius:50%;background:none;
+  color:var(--muted);font:italic 600 0.6875rem/1 Georgia,serif;display:inline-flex;align-items:center;justify-content:center;text-align:center;cursor:help}
+/* het rondje blijft klein, het klikvlak is 28 bij 28 */
+.info::after{content:"";position:absolute;inset:-6px}
 .info:hover,.info[aria-expanded="true"]{border-color:var(--ink);color:var(--ink)}
 .cause-bar{height:10px;background:var(--bg);border-radius:3px;overflow:hidden}
 .cause-bar i{display:block;height:100%;background:var(--spin);border-radius:3px}
@@ -134,80 +159,86 @@ td.cause{max-width:360px;overflow:hidden;text-overflow:ellipsis}
 td.disks{white-space:normal;min-width:6rem;max-width:14rem}
 tr.has-sess{cursor:pointer}
 tr.has-sess:hover td{background:var(--bg)}
-.sess{margin-left:10px;border:1px solid var(--line);background:var(--panel);border-radius:5px;padding:0 7px;font-size:12px;color:var(--muted);cursor:pointer}
+.sess{position:relative;min-height:22px;margin-left:10px;border:1px solid var(--line);background:var(--panel);border-radius:5px;padding:0 7px;font-size:0.75rem;color:var(--muted);cursor:pointer}
+.sess::after{content:"";position:absolute;inset:-3px 0}
 .sess[aria-expanded="true"]{border-color:var(--spin);color:var(--ink)}
 tr.sess-row td{background:var(--bg);white-space:normal;padding:8px 10px 10px}
-.files{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto;font-size:13px}
+.files{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto;font-size:0.8125rem}
 .files li{display:grid;grid-template-columns:4.6rem 6.5rem 10rem 1fr;gap:10px;padding:2px 0;border-bottom:1px solid var(--line);align-items:center}
 .files li:last-child{border-bottom:0}
 .files time{color:var(--muted)}
 .files .ev{color:var(--muted)}
-.files .ev.w{color:var(--up)}
+.files .ev.w{color:var(--up-text)}
 .files .pool{color:var(--muted)}
 .files .path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 tr.sess-row p{margin:0 0 6px}
 .files .by{overflow:hidden}
-.who{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;font-size:12px;line-height:1.5;padding:0 7px;border-radius:5px;border:1px solid var(--line);color:var(--ink)}
+.who{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;font-size:0.75rem;line-height:1.5;padding:0 7px;border-radius:5px;border:1px solid var(--line);color:var(--ink)}
 .who.container{border-color:var(--spin);background:var(--spin-fill)}
-.who.gebruiker{border-color:var(--up);color:var(--up)}
+.who.gebruiker{border-color:var(--up);color:var(--up-text)}
 .who.unraid,.who.onbekend,.who.none{color:var(--muted)}
-h3.sub{font-size:13.5px;font-weight:600;margin:18px 0 6px}
+h3.sub{font-size:0.8438rem;font-weight:600;margin:18px 0 6px}
 .kind-dot{flex:none;display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:1px;background:var(--idle)}
 .kind-dot.container{background:var(--spin)} .kind-dot.gebruiker{background:var(--up)}
 .cause-bar i.gebruiker{background:var(--up)} .cause-bar i.unraid,.cause-bar i.onbekend{background:var(--idle)}
 /* lezen/schrijven-badge naast het soort gebeurtenis */
-.rw{flex:none;display:inline-block;min-width:1.15rem;text-align:center;font-size:10px;font-weight:700;line-height:1.4;border-radius:4px;padding:0 3px;vertical-align:1px}
-.rw.w{background:var(--up);color:#fff}
-.rw.r{background:var(--idle);color:#fff}
+.rw{flex:none;display:inline-block;min-width:1.15rem;text-align:center;font-size:0.6875rem;font-weight:700;line-height:1.4;border-radius:4px;padding:0 3px;vertical-align:1px}
+/* badges: tekst op --up-text, --muted en --spin haalt in beide thema's minstens 4,5:1 */
+.rw.w{background:var(--up-text);color:var(--on-accent)}
+.rw.r{background:var(--muted);color:var(--on-accent)}
 /* actieve schijven: wie schrijft/leest er, ook zonder spin-up */
 .actdisk{border-top:1px solid var(--line);padding:10px 0 4px}
 .actdisk:first-child{border-top:0;padding-top:0}
 .actdisk .head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
-.actdisk .head b{font-size:14px}
-.actdisk .head .muted{font-size:12.5px}
+.actdisk .head b{font-size:0.875rem}
+.actdisk .head .muted{font-size:0.7812rem}
 .actcols{display:grid;grid-template-columns:1fr 1fr;gap:4px 26px;margin-top:6px}
-.actcols h4{font-size:12px;font-weight:600;color:var(--muted);margin:8px 0 2px;text-transform:uppercase;letter-spacing:.03em}
+.actcols h4{font-size:0.75rem;font-weight:600;color:var(--muted);margin:8px 0 2px;text-transform:uppercase;letter-spacing:.03em}
 .actcols .cause-row{grid-template-columns:minmax(6rem,1fr) 1.2fr 2rem;padding:2px 0}
 @media (max-width:600px){.actcols{grid-template-columns:1fr}}
-/* live activiteitsfeed onder Actieve schijven */
-.feed{list-style:none;margin:6px 0 0;padding:0;max-height:220px;overflow:auto;font-size:13px}
-.feed li{display:grid;grid-template-columns:auto 1.4rem 1fr auto;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line)}
+/* live activiteitsfeed: eigen paneel onder Actieve schijven */
+.feed{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto;font-size:0.8125rem}
+/* punt, R/W, pad, bron, tijd: vijf kolommen op één regel */
+.feed li{display:grid;grid-template-columns:auto 1.4rem 1fr auto auto;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line)}
 .feed li:last-child{border-bottom:0}
 .feed li.fresh{animation:feedIn .6s ease-out}
 @keyframes feedIn{from{background:var(--spin-fill);opacity:0}to{opacity:1}}
 .feed .dot{flex:none;width:9px;height:9px;border-radius:50%;margin:0}
 .feed .dot.w{background:var(--up)} .feed .dot.r{background:var(--spin)}
-.feed .fb{min-width:1.15rem;text-align:center;font-size:10px;font-weight:700;line-height:1.4;border-radius:4px;padding:0 3px;color:#fff}
-.feed .fb.w{background:var(--up)} .feed .fb.r{background:var(--spin)}
+.feed .fb{min-width:1.15rem;text-align:center;font-size:0.6875rem;font-weight:700;line-height:1.4;border-radius:4px;padding:0 3px;color:var(--on-accent)}
+.feed .fb.w{background:var(--up-text)} .feed .fb.r{background:var(--spin)}
 .feed .fp{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .haspath{cursor:help}
 .feed .fs{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:9rem}
-.feed time{color:var(--muted);white-space:nowrap;font-size:12px}
+.feed time{color:var(--muted);white-space:nowrap;font-size:0.75rem}
 @media (prefers-reduced-motion:reduce){.feed li.fresh{animation:none}}
 @media (max-width:600px){.files li{grid-template-columns:4.6rem 1fr}.files .ev,.files .by{display:none}}
 [hidden]{display:none!important}
+/* alleen voor schermlezers */
+.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
 .hist{display:flex;align-items:flex-end;gap:3px;height:170px;padding-top:8px}
 .hist div{flex:1;background:var(--spin);border-radius:2px 2px 0 0;min-height:1px;position:relative}
 .hist div.peak{background:var(--up)}
-.hist-labels{display:flex;gap:3px;margin-top:6px;font-size:11.5px;color:var(--muted)}
+.hist-labels{display:flex;gap:3px;margin-top:6px;font-size:0.7188rem;color:var(--muted)}
 .hist-labels span{flex:1;text-align:center}
-.hist-note{font-size:13px;margin:12px 0 0}
+.hist-note{font-size:0.8125rem;margin:12px 0 0}
 .panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
 .panel-head h2{margin:0}
 select{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:4px 8px}
 .tablewrap{max-height:340px;overflow:auto}
-table{width:100%;border-collapse:collapse;font-size:13.5px}
+table{width:100%;border-collapse:collapse;font-size:0.8438rem}
 th{text-align:left;font-weight:600;color:var(--muted);position:sticky;top:0;background:var(--panel);padding:6px 8px;border-bottom:1px solid var(--line)}
 td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}
 .dot.up{background:var(--up)} .dot.down{background:var(--idle)}
 
-.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12.5px;padding:6px 9px;border-radius:6px;z-index:10;max-width:260px;line-height:1.35}
-.demo-note{display:inline-block;font-size:12.5px;background:var(--spin-fill);color:var(--ink);padding:2px 8px;border-radius:5px;margin-left:8px}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);font-size:0.7812rem;padding:6px 9px;border-radius:6px;z-index:10;max-width:260px;line-height:1.35}
+.demo-note{display:inline-block;font-size:0.7812rem;background:var(--spin-fill);color:var(--ink);padding:2px 8px;border-radius:5px;margin-left:8px}
 
 @media (max-width:820px){
   .lower{grid-template-columns:1fr}
+  #dash>.card.pair{grid-column:1/-1}
   .row{grid-template-columns:4rem 1fr}
   .lane-stats{grid-column:2;gap:12px}
   .axis .spacer-r{display:none}
@@ -227,13 +258,7 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
         <p id="sourceLine" class="muted" hidden></p>
         <p class="muted loading-text" id="loaderLine"><span class="spinner" aria-hidden="true"></span><span id="loaderText" aria-live="polite" data-i18n="loading">Loading data</span></p>
       </div>
-      <select id="lang" data-i18n-aria="language">
-        <option value="en">English</option>
-        <option value="nl">Nederlands</option>
-        <option value="fr">Français</option>
-        <option value="de">Deutsch</option>
-        <option value="es">Español</option>
-      </select>
+      <button type="button" class="icon-btn" id="openSettings" data-i18n-aria="settings" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     </div>
     <div class="controls">
       <div class="seg" role="group" data-i18n-aria="period" id="ranges" hidden>
@@ -273,8 +298,8 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
   </section>
 
   <main id="dash" hidden>
-    <section class="lanes" data-i18n-aria="lanes">
-      <div class="row axis-row"><div></div><div class="axis" id="axis"></div><div class="spacer-r"></div></div>
+    <section class="lanes card" data-card="lanes" data-i18n-aria="lanes">
+      <div class="row axis-row"><div></div><div class="axis" id="axis" aria-hidden="true"></div><div class="spacer-r"></div></div>
       <div id="laneList"></div>
       <div class="legend">
         <span><i class="lg-spin"></i><span data-i18n="legSpin">Spinning</span></span>
@@ -283,28 +308,30 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
       </div>
     </section>
 
-    <section class="lower">
-      <div class="panel">
-        <h2 data-i18n="histTitle">Spin-ups by hour of day</h2>
-        <div class="hist" id="hist"></div>
-        <div class="hist-labels" id="histLabels"></div>
-        <p class="hist-note muted" id="histNote"></p>
-      </div>
-      <div class="panel">
-        <h2 data-i18n="causesTitle">What wakes the drives</h2>
-        <div id="causes"></div>
-      </div>
+    <section class="panel card" data-card="hist" data-half>
+      <h2 data-i18n="histTitle">Spin-ups by hour of day</h2>
+      <div class="hist" id="hist"></div>
+      <div class="hist-labels" id="histLabels" aria-hidden="true"></div>
+      <p class="hist-note muted" id="histNote"></p>
     </section>
 
-    <section class="panel" style="margin-top:20px">
+    <section class="panel card" data-card="causes" data-half>
+      <h2 data-i18n="causesTitle">What wakes the drives</h2>
+      <div id="causes"></div>
+    </section>
+
+    <section class="panel card" data-card="act">
       <h2 data-i18n="actTitle">Active drives</h2>
-      <p class="muted" style="margin:0 0 8px;font-size:13px" data-i18n="actNote">Which processes keep the drives busy, even when they do not spin up.</p>
+      <p class="muted" style="margin:0 0 8px;font-size:0.8125rem" data-i18n="actNote">Which processes keep the drives busy, even when they do not spin up.</p>
       <div id="actDrives"></div>
-      <h3 class="sub" data-i18n="feedTitle">Live activity</h3>
+    </section>
+
+    <section class="panel card" data-card="feed">
+      <h2 data-i18n="feedTitle">Live activity</h2>
       <ol class="feed" id="feed"></ol>
     </section>
 
-    <section class="panel events-panel">
+    <section class="panel card" data-card="events">
       <div class="panel-head">
         <h2 data-i18n="eventsTitle">Events</h2>
         <div class="filters">
@@ -321,7 +348,32 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
     </section>
   </main>
 </div>
-<div class="tip" id="tip" hidden></div>
+<!-- instellingen: taal en welke kaartjes in welke volgorde -->
+<dialog class="settings" id="settings" aria-labelledby="settingsTitle">
+  <div class="set-head">
+    <h2 id="settingsTitle" data-i18n="settings">Settings</h2>
+    <button type="button" class="btn primary" id="settingsDone" data-i18n="done">Done</button>
+  </div>
+  <label class="set-lang"><span data-i18n="language">Language</span>
+    <select id="lang">
+      <option value="en">English</option>
+      <option value="nl">Nederlands</option>
+      <option value="fr">Français</option>
+      <option value="de">Deutsch</option>
+      <option value="es">Español</option>
+    </select>
+  </label>
+  <h3 class="set-sub" data-i18n="cardsTitle">Cards</h3>
+  <p class="muted set-note" data-i18n="cardsNote">Choose which cards to show and in which order.</p>
+  <ol class="set-cards" id="cardList"></ol>
+  <p class="sr" id="cardLive" aria-live="polite"></p>
+  <button type="button" class="btn" id="resetCards" data-i18n="resetCards">Restore default layout</button>
+</dialog>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+<!-- schermlezers: uitleg bij de tijdlijnen, de info-teksten en wat de toetsenbordtooltip toont -->
+<p id="traceHint" data-i18n="traceHint" hidden>Use the left and right arrow keys to step through the periods.</p>
+<div id="notes" hidden></div>
+<p class="sr" id="tipLive" aria-live="polite"></p>
 
 <script>
 (() => {
@@ -345,7 +397,8 @@ const I18N = {
     prev_h:'Previous hour', next_h:'Next hour',
     prev_1:'Previous day', next_1:'Next day', prev_7:'Previous week', next_7:'Next week',
     prev_30:'Previous month', next_30:'Next month',
-    noDataYet:'No data yet', noData:'No data', lanes:'Timeline per disk',
+    settings:'Settings', done:'Done', cardsTitle:'Cards', cardsNote:'Choose which cards to show and in which order.', moveUp:'Move {name} up', moveDown:'Move {name} down', movedTo:'{name}: position {n} of {total}', resetCards:'Restore default layout',
+    traceHint:'Use the left and right arrow keys to step through the periods.', noDataYet:'No data yet', noData:'No data', lanes:'Timeline per disk',
     legSpin:'Spinning', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups by hour of day', causesTitle:'What wakes the drives', eventsTitle:'Events',
     onlyUp:'Spin-ups only', devFilter:'Filter by disk', allDisks:'All disks',
@@ -390,7 +443,8 @@ const I18N = {
     prev_h:'Vorige uur', next_h:'Volgende uur',
     prev_1:'Vorige dag', next_1:'Volgende dag', prev_7:'Vorige week', next_7:'Volgende week',
     prev_30:'Vorige maand', next_30:'Volgende maand',
-    noDataYet:'Nog geen data', noData:'Geen data', lanes:'Tijdlijn per schijf',
+    settings:'Instellingen', done:'Klaar', cardsTitle:'Kaartjes', cardsNote:'Kies welke kaartjes je ziet en in welke volgorde.', moveUp:'{name} omhoog', moveDown:'{name} omlaag', movedTo:'{name}: plaats {n} van {total}', resetCards:'Standaardindeling herstellen',
+    traceHint:'Gebruik de pijltjestoetsen links en rechts om door de periodes te stappen.', noDataYet:'Nog geen data', noData:'Geen data', lanes:'Tijdlijn per schijf',
     legSpin:'Draait', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups per uur van de dag', causesTitle:'Wat maakt de schijven wakker', eventsTitle:'Gebeurtenissen',
     onlyUp:'Alleen spin-ups', devFilter:'Filter op schijf', allDisks:'Alle schijven',
@@ -435,7 +489,8 @@ const I18N = {
     prev_h:'Heure précédente', next_h:'Heure suivante',
     prev_1:'Jour précédent', next_1:'Jour suivant', prev_7:'Semaine précédente', next_7:'Semaine suivante',
     prev_30:'Mois précédent', next_30:'Mois suivant',
-    noDataYet:'Pas encore de données', noData:'Aucune donnée', lanes:'Chronologie par disque',
+    settings:'Réglages', done:'Terminé', cardsTitle:'Cartes', cardsNote:'Choisissez les cartes à afficher et leur ordre.', moveUp:'Monter {name}', moveDown:'Descendre {name}', movedTo:'{name} : position {n} sur {total}', resetCards:'Rétablir la disposition par défaut',
+    traceHint:'Utilisez les flèches gauche et droite pour parcourir les périodes.', noDataYet:'Pas encore de données', noData:'Aucune donnée', lanes:'Chronologie par disque',
     legSpin:'En rotation', legIdle:'Veille', legUp:'Démarrage',
     histTitle:'Démarrages par heure de la journée', causesTitle:'Ce qui réveille les disques', eventsTitle:'Événements',
     onlyUp:'Démarrages uniquement', devFilter:'Filtrer par disque', allDisks:'Tous les disques',
@@ -480,7 +535,8 @@ const I18N = {
     prev_h:'Vorherige Stunde', next_h:'Nächste Stunde',
     prev_1:'Vorheriger Tag', next_1:'Nächster Tag', prev_7:'Vorherige Woche', next_7:'Nächste Woche',
     prev_30:'Vorheriger Monat', next_30:'Nächster Monat',
-    noDataYet:'Noch keine Daten', noData:'Keine Daten', lanes:'Zeitleiste pro Festplatte',
+    settings:'Einstellungen', done:'Fertig', cardsTitle:'Karten', cardsNote:'Wähle, welche Karten angezeigt werden und in welcher Reihenfolge.', moveUp:'{name} nach oben', moveDown:'{name} nach unten', movedTo:'{name}: Position {n} von {total}', resetCards:'Standardanordnung wiederherstellen',
+    traceHint:'Mit den Pfeiltasten links und rechts gehst du die Zeitabschnitte durch.', noDataYet:'Noch keine Daten', noData:'Keine Daten', lanes:'Zeitleiste pro Festplatte',
     legSpin:'Läuft', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups nach Tageszeit', causesTitle:'Was weckt die Festplatten', eventsTitle:'Ereignisse',
     onlyUp:'Nur Spin-ups', devFilter:'Nach Festplatte filtern', allDisks:'Alle Festplatten',
@@ -525,7 +581,8 @@ const I18N = {
     prev_h:'Hora anterior', next_h:'Hora siguiente',
     prev_1:'Día anterior', next_1:'Día siguiente', prev_7:'Semana anterior', next_7:'Semana siguiente',
     prev_30:'Mes anterior', next_30:'Mes siguiente',
-    noDataYet:'Todavía no hay datos', noData:'Sin datos', lanes:'Cronología por disco',
+    settings:'Ajustes', done:'Listo', cardsTitle:'Tarjetas', cardsNote:'Elige qué tarjetas ver y en qué orden.', moveUp:'Subir {name}', moveDown:'Bajar {name}', movedTo:'{name}: posición {n} de {total}', resetCards:'Restaurar la disposición predeterminada',
+    traceHint:'Usa las flechas izquierda y derecha para recorrer los periodos.', noDataYet:'Todavía no hay datos', noData:'Sin datos', lanes:'Cronología por disco',
     legSpin:'Girando', legIdle:'Reposo', legUp:'Arranque',
     histTitle:'Arranques por hora del día', causesTitle:'Qué despierta los discos', eventsTitle:'Eventos',
     onlyUp:'Solo arranques', devFilter:'Filtrar por disco', allDisks:'Todos los discos',
@@ -603,7 +660,10 @@ function applyStatic(){
   document.querySelectorAll('[data-i18n]').forEach(el => el.textContent = t(el.dataset.i18n));
   document.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
   $('lang').value = lang;
+  $('openSettings').title = t('settings');
+  $('notes').innerHTML = INFO_KEYS.map(k => `<span id="note-${k}">${esc(t(k))}</span>`).join('');
 }
+const INFO_KEYS = ['rootNote', 'unknownNote', 'shfsNote', 'stoppedNote', 'whoUnknownNote'];
 setFormatters();
 
 /* ---------- parsing: dagbestanden, regels `epoch,soort,...` (zie docs/data-formats.md) ---------- */
@@ -950,6 +1010,9 @@ function render(){
 
   // banen
   const allUps = [];
+  // een live-update tekent de banen opnieuw: houd de toetsenbordfocus op dezelfde baan en hetzelfde segment
+  const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest('.trace');
+  const keep = focused ? {dev: focused.dataset.dev, i: traceFocus && traceFocus.dev === focused.dataset.dev ? traceFocus.i : null} : null;
   $('laneList').innerHTML = devs.map(dev => {
     const segs = segments(data.disks[dev], a, b);
     const y = st => st === 'up' ? 6 : 34;
@@ -968,8 +1031,8 @@ function render(){
     const pct = Math.round(activeMs/span*100), name = nameOf(dev);
     return `<div class="row lane">
       <div class="lane-name">${esc(name)}${name !== dev ? `<small>${esc(dev)}</small>` : ''}</div>
-      <div class="trace" data-dev="${esc(dev)}">
-        <svg viewBox="0 0 1000 40" preserveAspectRatio="none" aria-label="${esc(t('laneAria', {name, ups, pct}))}">
+      <div class="trace" data-dev="${esc(dev)}" tabindex="0" role="group" aria-label="${esc(t('laneAria', {name, ups, pct}))}" aria-describedby="traceHint">
+        <svg viewBox="0 0 1000 40" preserveAspectRatio="none" aria-hidden="true">
           <path class="grid" d="${gridPath}" vector-effect="non-scaling-stroke"/>
           <path class="fill" d="${fill}"/>
           <path class="wave" d="${wave}" vector-effect="non-scaling-stroke"/>
@@ -990,7 +1053,7 @@ function render(){
   const max = Math.max(1, ...bins), peak = bins.indexOf(Math.max(...bins));
   const hh = h => String(h).padStart(2,'0') + ':00';
   $('hist').innerHTML = bins.map((n,h) =>
-    `<div class="${h===peak && n ? 'peak':''}" style="height:${n/max*100}%" title="${esc(t('histBar', {from: hh(h), to: hh(h+1), n}))}"></div>`).join('');
+    `<div class="${h===peak && n ? 'peak':''}" style="height:${n/max*100}%" role="img" aria-label="${esc(t('histBar', {from: hh(h), to: hh(h+1), n}))}" title="${esc(t('histBar', {from: hh(h), to: hh(h+1), n}))}"></div>`).join('');
   $('histLabels').innerHTML = bins.map((_,h) => `<span>${h%3===0 ? h : ''}</span>`).join('');
   const days = Math.max(1, span/DAY);
   $('histNote').textContent = allUps.length
@@ -1035,7 +1098,7 @@ function render(){
       $('causes').innerHTML += `<h3 class="sub">${esc(t('byWho'))}</h3>` + wr.map(([k,n]) => {
         const [kind, label] = k.split('|');
         return `<div class="cause-row${kind === 'none' ? ' unknown' : ''}">
-          <span class="cause-name"><span class="kind-dot ${esc(kind)}"></span><span class="cn">${esc(label)}</span>${infoBtn(notes[k])}</span>
+          <span class="cause-name"><span class="kind-dot ${esc(kind)}" title="${esc(t('kind_' + kind))}"></span><span class="sr">${esc(t('kind_' + kind))}: </span><span class="cn">${esc(label)}</span>${infoBtn(notes[k])}</span>
           <span class="cause-bar"><i class="${esc(kind)}" style="width:${n/wm*100}%"></i></span>
           <b>${n}</b></div>`;
       }).join('');
@@ -1051,6 +1114,10 @@ function render(){
     devs.map(d => `<option value="${esc(d)}" ${d===cur?'selected':''}>${esc(nameOf(d))}</option>`).join('');
   renderEvents(a, b);
   bindTips(a, b);
+  if (keep){
+    const el = [...document.querySelectorAll('.trace')].find(x => x.dataset.dev === keep.dev);
+    if (el){ el.focus(); traceFocus = keep.i == null ? null : keep; }
+  }
 }
 
 /* ---------- actieve schijven: wie schrijft/leest er, ook zonder spin-up ---------- */
@@ -1170,7 +1237,7 @@ document.addEventListener('click', e => { const el = pathOf(e); if (el) $('tip')
 
 /* ---------- info-icoontjes met uitleg (hover, focus of tik) ---------- */
 const infoBtn = key => key
-  ? `<button type="button" class="info" data-info="${key}" aria-label="${esc(t('info'))}" aria-expanded="false">i</button>` : '';
+  ? `<button type="button" class="info" data-info="${key}" aria-label="${esc(t('info'))}" aria-describedby="note-${key}" aria-expanded="false">i</button>` : '';
 let infoOpen = null;
 function showInfo(btn){
   const tip = $('tip');
@@ -1198,7 +1265,7 @@ $('causes').addEventListener('focusout', e => { if (infoOf(e)) hideInfo(); });
 $('causes').addEventListener('click', e => { const b = infoOf(e); if (!b) return; infoOpen === b ? hideInfo() : showInfo(b); });
 document.addEventListener('pointerdown', e => { if (infoOpen && !infoOf(e)) hideInfo(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') hideInfo(); });
-addEventListener('scroll', hideInfo, {passive: true});
+addEventListener('scroll', () => { hideInfo(); if (traceFocus) $('tip').hidden = true; }, {passive: true});
 
 // Bij "Alle schijven": gebeurtenissen van dezelfde soort binnen 2 minuten van elkaar vormen één rij
 const GROUP_MS = 120e3;
@@ -1293,6 +1360,29 @@ $('events').addEventListener('click', e => {
   const [a,b] = bounds(); renderEvents(a,b);
 });
 
+// Tooltipregels voor één segment van een baan: [naam, status, tijdspanne, eventueel de oorzaak]
+function segLines(dev, s, a){
+  const lines = [nameOf(dev), t(s.st === 'up' ? 'tipUp' : 'tipDown') + (s.guessed ? ' ' + t('assumed') : ''),
+    t('tipSpan', {from: fmtFull.format(s.from), to: fmtTime.format(s.to), dur: dur(s.to - s.from)})];
+  if (s.st === 'up' && !s.guessed && !s.snap && s.from > a){
+    const c = causeOf(dev, s.from);
+    const w = c && c.first ? whoFor(c.first) : null;
+    const what = c && c.first ? (isRoot(c.first) ? t('dirListOnly') : isSmb(c.first) ? t('viaShare') : evLabel(c.first.ev) + ' ' + tailOf(c.first)) : '';
+    if (c) lines.push(c.first ? t('wokenBy', {share: shareOf(c.first), what}) + (w ? t('byWhom', {who: whoLabel(w)}) : '')
+                              : t('noFileActivity'));
+  }
+  return lines;
+}
+function showSegTip(lines, x, y){
+  const tip = $('tip');
+  tip.innerHTML = `<strong>${esc(lines[0])}</strong> ${esc(lines[1])}<br>` + lines.slice(2).map(esc).join('<br>');
+  tip.hidden = false;
+  tip.style.left = Math.max(8, Math.min(x + 14, innerWidth - tip.offsetWidth - 8)) + 'px';
+  tip.style.top = (y + 16) + 'px';
+}
+// Pijltjestoetsen per baan: links/rechts naar het vorige/volgende segment, Home/End naar het eerste/laatste
+const SEG_KEYS = {ArrowLeft: -1, ArrowRight: 1, Home: -Infinity, End: Infinity};
+let traceFocus = null;   // {dev, i}: baan met toetsenbordfocus, zodat een nieuwe render die terugzet
 function bindTips(a, b){
   const tip = $('tip');
   document.querySelectorAll('.trace').forEach(el => {
@@ -1301,20 +1391,22 @@ function bindTips(a, b){
       const r = el.getBoundingClientRect();
       const at = a + (e.clientX - r.left)/r.width*(b - a);
       const s = segs.find(s => at >= s.from && at <= s.to); if (!s) return;
-      let html = `<strong>${esc(nameOf(dev))}</strong> ${esc(t(s.st === 'up' ? 'tipUp' : 'tipDown'))}${s.guessed ? ' ' + esc(t('assumed')) : ''}<br>`+
-        esc(t('tipSpan', {from: fmtFull.format(s.from), to: fmtTime.format(s.to), dur: dur(s.to - s.from)}));
-      if (s.st === 'up' && !s.guessed && !s.snap && s.from > a){
-        const c = causeOf(dev, s.from);
-        const w = c && c.first ? whoFor(c.first) : null;
-        const what = c && c.first ? (isRoot(c.first) ? t('dirListOnly') : isSmb(c.first) ? t('viaShare') : evLabel(c.first.ev) + ' ' + tailOf(c.first)) : '';
-        if (c) html += '<br>' + esc(c.first ? t('wokenBy', {share: shareOf(c.first), what}) + (w ? t('byWhom', {who: whoLabel(w)}) : '')
-                                            : t('noFileActivity'));
-      }
-      tip.innerHTML = html; tip.hidden = false;
-      const x = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8);
-      tip.style.left = x + 'px'; tip.style.top = (e.clientY + 16) + 'px';
+      showSegTip(segLines(dev, s, a), e.clientX, e.clientY);
     };
     el.onpointerleave = () => tip.hidden = true;
+    el.onkeydown = e => {
+      if (!(e.key in SEG_KEYS) || !segs.length) return;
+      e.preventDefault();
+      const step = SEG_KEYS[e.key];
+      const cur = traceFocus && traceFocus.dev === dev ? traceFocus.i : step > 0 ? -1 : segs.length;
+      const i = Math.max(0, Math.min(segs.length - 1, Number.isFinite(step) ? cur + step : step > 0 ? segs.length - 1 : 0));
+      traceFocus = {dev, i};
+      const s = segs[i], lines = segLines(dev, s, a);
+      const r = el.getBoundingClientRect(), mid = (Math.max(s.from, a) + Math.min(s.to, b)) / 2;
+      showSegTip(lines, r.left + (mid - a)/(b - a || 1)*r.width - 14, r.bottom - 12);
+      $('tipLive').textContent = lines.join(', ');
+    };
+    el.onblur = () => { if (traceFocus && traceFocus.dev === dev) traceFocus = null; tip.hidden = true; };
   });
 }
 
@@ -1347,10 +1439,88 @@ $('now').onclick = () => navigate(() => { offset = 0; });
 $('lang').onchange = () => {
   lang = $('lang').value;
   try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
-  setFormatters(); applyStatic();
+  setFormatters(); applyStatic(); renderCardList();
   if (data) render(); else if (lastStatus) showStatus(lastStatus);
 };
 applyStatic();
+
+/* ---------- kaartjes: volgorde en zichtbaarheid (instellingen) ---------- */
+// Opgeslagen als [{id, hidden}] in de getoonde volgorde. Onbekende ids vallen weg en kaartjes die er
+// later bij komen verschijnen achteraan, zodat een oude indeling blijft werken.
+const CARDS_KEY = 'spindash.cards';
+const CARD_TITLES = {lanes:'lanes', hist:'histTitle', causes:'causesTitle', act:'actTitle', feed:'feedTitle', events:'eventsTitle'};
+const defaultCards = () => Object.keys(CARD_TITLES).map(id => ({id, hidden: false}));
+function loadCards(){
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(CARDS_KEY)); } catch (e) {}
+  const out = [], seen = new Set();
+  for (const c of Array.isArray(saved) ? saved : []){
+    if (c && c.id in CARD_TITLES && !seen.has(c.id)){ seen.add(c.id); out.push({id: c.id, hidden: !!c.hidden}); }
+  }
+  return out.concat(defaultCards().filter(c => !seen.has(c.id)));
+}
+let cards = loadCards();
+const saveCards = () => { try { localStorage.setItem(CARDS_KEY, JSON.stringify(cards)); } catch (e) {} };
+const cardEl = id => $('dash').querySelector(`:scope > [data-card="${id}"]`);
+function applyCards(){
+  for (const c of cards){ const el = cardEl(c.id); $('dash').appendChild(el); el.hidden = c.hidden; el.classList.remove('pair'); }
+  // twee zichtbare halve kaartjes direct na elkaar staan naast elkaar; een los half kaartje krijgt de volle breedte
+  const vis = cards.filter(c => !c.hidden).map(c => cardEl(c.id));
+  for (let i = 0; i < vis.length - 1; i++){
+    if (vis[i].hasAttribute('data-half') && vis[i+1].hasAttribute('data-half')){ vis[i].classList.add('pair'); vis[++i].classList.add('pair'); }
+  }
+}
+function renderCardList(focusSel){
+  $('cardList').innerHTML = cards.map((c, i) => {
+    const name = t(CARD_TITLES[c.id]), up = t('moveUp', {name}), down = t('moveDown', {name});
+    return `<li data-card="${c.id}">
+      <label><input type="checkbox"${c.hidden ? '' : ' checked'}> ${esc(name)}</label>
+      <span class="set-move">
+        <button type="button" class="btn" data-move="-1" aria-label="${esc(up)}" title="${esc(up)}"${i === 0 ? ' disabled' : ''}>↑</button>
+        <button type="button" class="btn" data-move="1" aria-label="${esc(down)}" title="${esc(down)}"${i === cards.length - 1 ? ' disabled' : ''}>↓</button>
+      </span></li>`;
+  }).join('');
+  const el = focusSel && $('cardList').querySelector(focusSel);
+  if (el) el.focus();
+}
+$('cardList').addEventListener('change', e => {
+  const c = cards.find(c => c.id === e.target.closest('li').dataset.card);
+  c.hidden = !e.target.checked;
+  saveCards(); applyCards();
+});
+$('cardList').addEventListener('click', e => {
+  const btn = e.target.closest('[data-move]'); if (!btn || btn.disabled) return;
+  const id = btn.closest('li').dataset.card, i = cards.findIndex(c => c.id === id), j = i + +btn.dataset.move;
+  if (j < 0 || j >= cards.length) return;
+  [cards[i], cards[j]] = [cards[j], cards[i]];
+  saveCards(); applyCards();
+  // de focus blijft bij hetzelfde kaartje; aan de rand gaat hij naar de knop die nog wel kan
+  const edge = j === 0 || j === cards.length - 1;
+  renderCardList(`li[data-card="${id}"] [data-move="${edge ? -btn.dataset.move : btn.dataset.move}"]`);
+  $('cardLive').textContent = t('movedTo', {name: t(CARD_TITLES[id]), n: j + 1, total: cards.length});
+});
+$('resetCards').onclick = () => {
+  cards = defaultCards();
+  try { localStorage.removeItem(CARDS_KEY); } catch (e) {}
+  applyCards(); renderCardList();
+};
+// <dialog> met showModal waar het kan; anders (oude browsers, jsdom) gewoon het open-attribuut
+function openSettings(){
+  renderCardList();
+  const d = $('settings');
+  if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  $('openSettings').setAttribute('aria-expanded', 'true');
+}
+function closeSettings(){
+  const d = $('settings');
+  if (d.close) d.close(); else { d.removeAttribute('open'); onSettingsClosed(); }
+}
+function onSettingsClosed(){ $('openSettings').setAttribute('aria-expanded', 'false'); $('openSettings').focus(); }
+$('openSettings').onclick = openSettings;
+$('settingsDone').onclick = closeSettings;
+$('settings').addEventListener('close', onSettingsClosed);
+$('settings').addEventListener('click', e => { if (e.target === $('settings')) closeSettings(); });   // klik op de achtergrond
+applyCards();
 $('devFilter').onchange = $('onlyUp').onchange = () => { const [a,b] = bounds(); renderEvents(a,b); };
 let resizeTimer;
 addEventListener('resize', () => {

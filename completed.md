@@ -2,6 +2,24 @@
 
 Newest first.
 
+## 2026-10-16: settings
+- A gear button at the top right (where the language choice was) opens Settings, a dialog with the language choice and the list of cards
+- Each card can be hidden or shown and moved up or down; the layout is stored in the browser (`spindash.cards`) and survives new cards being added. "Restore default layout" resets it
+- The two half-width cards (spin-ups by hour, what wakes the drives) sit side by side when they are next to each other; on their own they take the full width
+- Keyboard and screen reader friendly: Escape closes the dialog and returns focus to the gear, moving a card keeps focus on it and announces its new position
+
+## 2026-10-16: accessibility fixes from a design audit
+- Badge text (R/W in session lists and the live feed) now reaches at least 4.5:1 in both themes; it was as low as 1.8:1 (white on amber in dark mode). New tokens `--up-text` (amber that is readable as text) and `--on-accent` (text on coloured badges and the primary button)
+- "User" labels and write events use `--up-text` instead of `--up` as text colour (was 3.3:1 in light mode)
+- The disk timelines can be read with the keyboard: Tab to a lane, arrow keys step through its periods, Home/End jump to the first/last; the tooltip appears and a live region reads it out. Focus survives live updates
+- Histogram bars have their own label for screen readers; axis and hour labels are hidden from them; the timeline SVG is hidden behind the lane's own label
+- Info icons point to their explanation with `aria-describedby`, so screen readers hear it without hovering
+- The kind of a source (container, user, Unraid) is also given as text, not only as the colour of its dot
+- Larger hit areas: info icons 28×28, the file toggle in the events table, the "Spin-ups only" label, and the browse arrows
+- All font sizes are in `rem`, so the page follows the browser's text size; nothing is smaller than 11px
+- The live feed no longer wraps its time onto a second line (five items in a four-column grid)
+- Live activity has its own panel below Active drives instead of being a sub-heading inside it
+
 ## 2026-10-12: fixed header layout
 - Language choice top right next to the title; period and browse buttons always on their own row below it, so the menu no longer jumps when switching period
 - On narrow screens the period buttons scroll horizontally instead of breaking their labels

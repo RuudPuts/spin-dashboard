@@ -15,6 +15,11 @@ Open work, roughly by priority. Move finished items to `completed.md`.
 - [ ] Optional: set an "expected night window" per pool and highlight deviations
 - [ ] Export a period as CSV from the UI
 
+## Design (from the 2026-10-16 audit, medium priority)
+- [ ] Use one word for the hardware: the UI mixes "drive" and "disk" (headings say drives, the table and filter say disk)
+- [ ] Period buttons on a phone scroll horizontally with a hidden scrollbar, so "All" is cut off without a hint; show a fade or let them wrap
+- [ ] Full file paths in Active drives and the live feed are only reachable by hover or tap, not by keyboard
+
 ## Technical
 - [ ] Health endpoint (`/health`) with poller and watcher status, used by the Docker HEALTHCHECK
 - [ ] Make `via_user_share` faster with many processes (cache fd scans per second)
