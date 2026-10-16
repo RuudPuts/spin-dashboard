@@ -37,7 +37,8 @@ start, which is a quick way to try the dashboard on real data. For the frontend 
 UI follows the browser language or the last chosen language (`localStorage`, key `spindash.lang`).
 The card layout from Settings is stored per browser under `spindash.cards`: a JSON list of
 `{id, hidden}` in display order (ids `lanes`, `hist`, `causes`, `act`, `feed`, `events`); unknown ids are
-ignored and missing cards are added at the end.
+ignored and missing cards are added at the end. Lane grouping is stored under `spindash.group` as
+`{merge}` (default `true`, pools and the array together); it only changes the view, the day files stay per drive.
 
 ## Testing on Unraid
 

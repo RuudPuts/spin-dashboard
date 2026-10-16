@@ -2,9 +2,16 @@
 
 Newest first.
 
+## 2026-10-16: pools and the array as one lane
+- Each pool and the array show as one lane, one event row and one entry in the disk filter. A pool lists its member devices under the name, the array its number of drives
+- A combined lane spins when any of its drives spins; the tooltip says how many were spinning at most, e.g. "spinning (2 of 3)"
+- One switch under Settings › Drives, on by default, remembered per browser (`spindash.group`). Frontend only: the day files are unchanged
+- Clicking inside the settings dialog's own padding no longer closes it; only clicks on the backdrop do
+- The first option of the events filter names what it covers: "All drives", "All pools" or "All drives and pools"
+
 ## 2026-10-16: settings
 - A gear button at the top right (where the language choice was) opens Settings, a dialog with the language choice and the list of cards
-- Each card can be hidden or shown and moved up or down; the layout is stored in the browser (`spindash.cards`) and survives new cards being added. "Restore default layout" resets it
+- Each card can be hidden or shown and moved by dragging its handle (mouse or touch) or with the up/down buttons; the layout is stored in the browser (`spindash.cards`) and survives new cards being added. "Restore default layout" resets it
 - The two half-width cards (spin-ups by hour, what wakes the drives) sit side by side when they are next to each other; on their own they take the full width
 - Keyboard and screen reader friendly: Escape closes the dialog and returns focus to the gear, moving a card keeps focus on it and announces its new position
 

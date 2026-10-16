@@ -32,6 +32,15 @@ enough to know *that* someone was busy via SMB.
 Pool members spin up together. In the table they are grouped (within 2 minutes, same kind), and
 the rankings count such a group as a single event.
 
+## Pools and the array as one lane
+Grouping happens only in the frontend, so the day files and the data contract stay per drive.
+Membership comes from the names in `disks.ini`, the same rule as `mount_base()`: `trunk2` belongs to
+pool `trunk`, `parity` and `diskN` form the array. This relies on Unraid not allowing pool names that
+end in a digit. A group spins when at least one member spins, so members that wake together count as
+one spin-up. One switch covers pools and the array together and is on by default. For the array
+this hides which drive woke up (array drives spin up on their own); turning the switch off shows
+every drive again.
+
 ## Auto-updaters
 What's Up Docker with `THRESHOLD=all` saw `python:3.15-rc-windowsservercore-ltsc2025` as an update
 of `python:3.13-slim`, removed the container and could not start the new one. The image therefore

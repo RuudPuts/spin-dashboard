@@ -17,6 +17,7 @@ See when your hard drives spin up and down, and **why**.
 - Browse back and forward through history: the last hour, a day at a time in the 24-hour view, a week in the 7-day view, a month (30 days) in the 30-day view.
 - Available in English, Dutch, French, German and Spanish. Follows your browser language; pick another one under Settings (the gear at the top right).
 - Settings also let you hide cards and change their order; the layout is remembered per browser.
+- Pools and the array show as one lane each by default (a lane spins when any of its drives spins); one switch in Settings shows every drive separately.
 - Works with the array and with HDD pools (XFS, Btrfs, ZFS). SSD/NVMe pools are ignored.
 
 <picture>

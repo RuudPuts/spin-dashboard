@@ -59,18 +59,19 @@ test('missing data shows a status message instead of the dashboard', async () =>
 });
 
 test('demo mode renders lanes for every disk', async () => {
-  const dom = await load({}, 'http://dash/?demo&lang=nl');
+  const dom = await load({}, 'http://dash/?demo&lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.group', JSON.stringify({ merge: false })));
   const d = dom.window.document;
   assert.equal(d.querySelectorAll('.lane').length, 6);
   assert.match(d.getElementById('sourceLine').textContent, /Voorbeelddata/);
   dom.window.close();
 });
 
-test('pool members are grouped into one row with names from disks.csv', async () => {
-  const dom = await load(POOL);
+test('without pool grouping, pool members are grouped into one row with names from disks.csv', async () => {
+  const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.group', JSON.stringify({ merge: false })));
   const r = rows(dom.window.document);
   assert.ok(r.some((x) => /trunk, trunk2 Opgespind/.test(x)), r.join('\n'));
   assert.ok(r.some((x) => /trunk, trunk2 Naar standby/.test(x)));
+  assert.equal(dom.window.document.querySelectorAll('.lane').length, 2);
   dom.window.close();
 });
 
@@ -102,7 +103,7 @@ test('"Door wie" ranks sources of spin-ups', async () => {
 });
 
 test('filtering on one disk shows its events separately', async () => {
-  const dom = await load(POOL);
+  const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.group', JSON.stringify({ merge: false })));
   const d = dom.window.document;
   const sel = d.getElementById('devFilter');
   sel.value = 'sde';
@@ -119,7 +120,7 @@ test('language follows the browser and falls back to English', async () => {
   let d = dom.window.document;
   assert.equal(text(d.querySelector('h1')), 'Wann laufen meine Festplatten');
   assert.equal(d.documentElement.lang, 'de');
-  assert.ok(rows(d).some((x) => /trunk, trunk2 Angelaufen/.test(x)));
+  assert.ok(rows(d).some((x) => /trunk Angelaufen/.test(x)));
   dom.window.close();
   dom = await load(POOL, 'http://dash/', ['ja-JP']);
   d = dom.window.document;
@@ -576,7 +577,7 @@ test('a lane can be read with the keyboard: arrow keys step through its periods'
   assert.equal(tip.hidden, false);
   assert.match(live.textContent, /^trunk, in standby/);
   for (let n = 0; n < 5 && !/draait/.test(live.textContent); n++) key('ArrowRight');   // naar de spin-up
-  assert.match(live.textContent, /^trunk, draait, .*Gewekt door Media\/series/);
+  assert.match(live.textContent, /^trunk, draait \(2 van 2\), .*Gewekt door Media\/series/);
   key('End'); const last = live.textContent;
   key('ArrowRight');                                     // voorbij het einde blijft hij staan
   assert.equal(live.textContent, last);
@@ -679,5 +680,93 @@ test('changing the language in settings also translates the card list', async ()
   sel.value = 'de'; sel.dispatchEvent(new w.Event('change'));
   assert.equal(text(d.querySelector('#cardList li label')), 'Zeitleiste pro Festplatte');
   assert.equal(d.getElementById('openSettings').getAttribute('aria-label'), 'Einstellungen');
+  dom.window.close();
+});
+
+// ---------- pools en array als één baan ----------
+const ARRAYDATA = served({ [today]: [
+  `${ep(300)},disk,sdb,parity`, `${ep(300)},disk,sdc,disk1`, `${ep(300)},disk,sdf,disk2`,
+  `${ep(300)},disk,sdd,trunk`, `${ep(300)},disk,sde,trunk2`,
+  ...['sdb', 'sdc', 'sdf', 'sdd', 'sde'].map((dev) => `${ep(300)},state,${dev},standby`),
+  `${ep(101)},who,container,plex,7,geopend,/mnt/disk1/Films/x.mkv`,
+  `${ep(100)},spin,sdc,active`, `${ep(80)},spin,sdc,standby`,
+  `${ep(50)},spin,sdf,active`, `${ep(49)},spin,sdc,active`, `${ep(30)},spin,sdf,standby`, `${ep(30)},spin,sdc,standby`,
+] });
+const laneNames = (d) => [...d.querySelectorAll('.lane-name')].map((el) => [el.firstChild.textContent, el.querySelector('small')?.textContent].filter(Boolean).join(' '));
+
+test('a pool shows as one lane and one event row by default', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document;
+  assert.deepEqual(laneNames(d), ['trunk sdd, sde']);
+  assert.match(d.querySelector('.trace').getAttribute('aria-label'), /^trunk: 1 spin-ups/);   // één spin-up, niet twee
+  const r = rows(d);
+  assert.ok(r.some((x) => /^\S+ \S+ \S+, \S+ trunk Opgespind/.test(x)), r.join('\n'));
+  assert.ok(r.every((x) => !/trunk2/.test(x)));
+  assert.deepEqual([...d.querySelectorAll('#devFilter option')].map(text), ['Alle pools', 'trunk']);
+  assert.equal(d.getElementById('groupDrives').checked, true);
+  dom.window.close();
+});
+
+test('the array is one lane by default, and one switch shows every drive again', async () => {
+  const dom = await load(ARRAYDATA);
+  const d = dom.window.document, w = dom.window;
+  assert.deepEqual(laneNames(d), ['Array 3 schijven', 'trunk sdd, sde']);
+  assert.match(d.getElementById('sourceLine').textContent, /^5 schijven,/);   // de samenvatting telt schijven, geen banen
+  assert.equal(text(d.querySelector('#devFilter option')), 'Alle schijven en pools');
+  // disk1 alleen, later disk2 en disk1 bijna tegelijk: twee keer wakker
+  assert.match(d.querySelector('.trace').getAttribute('aria-label'), /^Array: 2 spin-ups/);
+  assert.match(text(d.getElementById('causes')), /^Films 1 Onbekend/);   // activiteit van disk1 telt voor de array
+  const box = d.getElementById('groupDrives');
+  box.checked = false; box.dispatchEvent(new w.Event('change'));
+  assert.deepEqual(laneNames(d), ['parity sdb', 'disk1 sdc', 'disk2 sdf', 'trunk sdd', 'trunk2 sde']);
+  assert.equal(text(d.querySelector('#devFilter option')), 'Alle schijven');
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.group')), { merge: false });
+  dom.window.close();
+});
+
+test('the array lane tooltip says how many drives were spinning', async () => {
+  const dom = await load(ARRAYDATA);
+  const d = dom.window.document, w = dom.window;
+  const tr = d.querySelector('.trace');
+  tr.focus();
+  const seen = [];
+  for (let n = 0; n < 6; n++){ tr.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); seen.push(d.getElementById('tipLive').textContent); }
+  assert.ok(seen.some((x) => /^Array, draait \(1 van 3\)/.test(x)), seen.join('\n'));
+  assert.ok(seen.some((x) => /^Array, draait \(2 van 3\)/.test(x)), seen.join('\n'));
+  dom.window.close();
+});
+
+test('cards can be dragged into a new order by their handle', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document, w = dom.window;
+  d.getElementById('openSettings').click();
+  // jsdom kent geen layout: elke rij is 44px hoog, op de plek waar hij nu in de lijst staat
+  for (const li of d.querySelectorAll('#cardList li')) {
+    li.getBoundingClientRect = () => { const i = [...li.parentNode.children].indexOf(li); return { top: i * 44, height: 44, bottom: i * 44 + 44 }; };
+  }
+  const ev = (type, el, y) => el.dispatchEvent(new w.MouseEvent(type, { bubbles: true, cancelable: true, clientY: y }));
+  const grip = d.querySelector('#cardList li[data-card="events"] .grip');
+  ev('pointerdown', grip, 240);
+  assert.ok(grip.closest('li').classList.contains('dragging'));
+  ev('pointermove', grip, 120);   // nog geen opslag tijdens het slepen
+  ev('pointermove', grip, 50);    // tussen de eerste en tweede rij
+  assert.equal(w.localStorage.getItem('spindash.cards'), null);
+  ev('pointerup', d, 50);
+  assert.deepEqual(cardOrder(d), ['lanes', 'events', 'hist', 'causes', 'act', 'feed']);
+  assert.deepEqual([...d.querySelectorAll('#cardList li')].map((li) => li.dataset.card), ['lanes', 'events', 'hist', 'causes', 'act', 'feed']);
+  assert.ok(!d.querySelector('#cardList .dragging'));
+  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 2 van 6');
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.cards')).map((c) => c.id), ['lanes', 'events', 'hist', 'causes', 'act', 'feed']);
+  // de handgreep zit buiten het label: slepen zet het kaartje niet aan of uit
+  assert.ok(!d.querySelector('#cardList li label .grip'));
+  dom.window.close();
+});
+
+test('the timeline card has a heading like the other cards', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document;
+  const card = d.querySelector('#dash > [data-card="lanes"]');
+  assert.equal(text(card.querySelector('h2')), 'Tijdlijn per schijf');
+  assert.equal(d.getElementById(card.getAttribute('aria-labelledby')), card.querySelector('h2'));
   dom.window.close();
 });

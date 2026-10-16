@@ -70,10 +70,17 @@ dialog.settings::backdrop{background:rgba(10,15,20,.45)}
 .set-lang{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .set-sub{font-size:0.875rem;font-weight:600;margin:20px 0 2px}
 .set-note{font-size:0.8125rem;margin:0 0 6px}
+.set-check{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer}
+.set-check input{accent-color:var(--spin);width:18px;height:18px;margin:0;flex:none}
 .set-cards{list-style:none;margin:0 0 16px;padding:0}
 .set-cards li{display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
 .set-cards label{display:flex;align-items:center;gap:10px;flex:1;min-width:0;min-height:44px;cursor:pointer}
 .set-cards input{accent-color:var(--spin);width:18px;height:18px;margin:0;flex:none}
+/* slepen aan het handvat; de pijlknoppen blijven voor het toetsenbord */
+.grip{flex:none;display:flex;align-items:center;justify-content:center;width:20px;min-height:44px;margin-left:-4px;color:var(--muted);cursor:grab;touch-action:none}
+.grip svg{width:10px;height:16px}
+.set-cards li.dragging{background:var(--bg);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.18);position:relative;z-index:1}
+.set-cards.is-dragging,.set-cards.is-dragging *{cursor:grabbing;user-select:none}
 .set-move{display:flex;gap:6px;flex:none}
 .set-move .btn{width:34px;height:34px;padding:0;line-height:1}
 
@@ -110,7 +117,8 @@ dialog.settings::backdrop{background:rgba(10,15,20,.45)}
 .status code{font-size:0.8125rem}
 
 /* lanes */
-.lanes{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 18px 14px}
+.lanes{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 18px 14px}
+.lanes h2{margin-bottom:4px}
 .row{display:grid;grid-template-columns:5.5rem 1fr 11rem;gap:14px;align-items:center}
 .axis{height:30px;position:relative}
 .axis span{position:absolute;bottom:4px;transform:translateX(-50%);font-size:0.75rem;color:var(--muted);white-space:nowrap}
@@ -298,7 +306,8 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
   </section>
 
   <main id="dash" hidden>
-    <section class="lanes card" data-card="lanes" data-i18n-aria="lanes">
+    <section class="lanes card" data-card="lanes" aria-labelledby="lanesTitle">
+      <h2 id="lanesTitle" data-i18n="lanes">Timeline per disk</h2>
       <div class="row axis-row"><div></div><div class="axis" id="axis" aria-hidden="true"></div><div class="spacer-r"></div></div>
       <div id="laneList"></div>
       <div class="legend">
@@ -363,6 +372,8 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
       <option value="es">Español</option>
     </select>
   </label>
+  <h3 class="set-sub" data-i18n="viewTitle">Drives</h3>
+  <label class="set-check"><input type="checkbox" id="groupDrives"> <span data-i18n="groupDrives">Show pools and arrays merged</span></label>
   <h3 class="set-sub" data-i18n="cardsTitle">Cards</h3>
   <p class="muted set-note" data-i18n="cardsNote">Choose which cards to show and in which order.</p>
   <ol class="set-cards" id="cardList"></ol>
@@ -398,7 +409,8 @@ const I18N = {
     prev_1:'Previous day', next_1:'Next day', prev_7:'Previous week', next_7:'Next week',
     prev_30:'Previous month', next_30:'Next month',
     settings:'Settings', done:'Done', cardsTitle:'Cards', cardsNote:'Choose which cards to show and in which order.', moveUp:'Move {name} up', moveDown:'Move {name} down', movedTo:'{name}: position {n} of {total}', resetCards:'Restore default layout',
-    traceHint:'Use the left and right arrow keys to step through the periods.', noDataYet:'No data yet', noData:'No data', lanes:'Timeline per disk',
+    viewTitle:'Drives', groupDrives:'Show pools and arrays merged', arrayName:'Array', disk_one:'{n} drive', disk_other:'{n} drives', upOf:'({n} of {total})',
+    allPools:'All pools', allDisksPools:'All drives and pools', dragToMove:'Drag to move', traceHint:'Use the left and right arrow keys to step through the periods.', noDataYet:'No data yet', noData:'No data', lanes:'Timeline per disk',
     legSpin:'Spinning', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups by hour of day', causesTitle:'What wakes the drives', eventsTitle:'Events',
     onlyUp:'Spin-ups only', devFilter:'Filter by disk', allDisks:'All disks',
@@ -444,7 +456,8 @@ const I18N = {
     prev_1:'Vorige dag', next_1:'Volgende dag', prev_7:'Vorige week', next_7:'Volgende week',
     prev_30:'Vorige maand', next_30:'Volgende maand',
     settings:'Instellingen', done:'Klaar', cardsTitle:'Kaartjes', cardsNote:'Kies welke kaartjes je ziet en in welke volgorde.', moveUp:'{name} omhoog', moveDown:'{name} omlaag', movedTo:'{name}: plaats {n} van {total}', resetCards:'Standaardindeling herstellen',
-    traceHint:'Gebruik de pijltjestoetsen links en rechts om door de periodes te stappen.', noDataYet:'Nog geen data', noData:'Geen data', lanes:'Tijdlijn per schijf',
+    viewTitle:'Schijven', groupDrives:'Pools en arrays samengevoegd tonen', arrayName:'Array', disk_one:'{n} schijf', disk_other:'{n} schijven', upOf:'({n} van {total})',
+    allPools:'Alle pools', allDisksPools:'Alle schijven en pools', dragToMove:'Sleep om te verplaatsen', traceHint:'Gebruik de pijltjestoetsen links en rechts om door de periodes te stappen.', noDataYet:'Nog geen data', noData:'Geen data', lanes:'Tijdlijn per schijf',
     legSpin:'Draait', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups per uur van de dag', causesTitle:'Wat maakt de schijven wakker', eventsTitle:'Gebeurtenissen',
     onlyUp:'Alleen spin-ups', devFilter:'Filter op schijf', allDisks:'Alle schijven',
@@ -490,7 +503,8 @@ const I18N = {
     prev_1:'Jour précédent', next_1:'Jour suivant', prev_7:'Semaine précédente', next_7:'Semaine suivante',
     prev_30:'Mois précédent', next_30:'Mois suivant',
     settings:'Réglages', done:'Terminé', cardsTitle:'Cartes', cardsNote:'Choisissez les cartes à afficher et leur ordre.', moveUp:'Monter {name}', moveDown:'Descendre {name}', movedTo:'{name} : position {n} sur {total}', resetCards:'Rétablir la disposition par défaut',
-    traceHint:'Utilisez les flèches gauche et droite pour parcourir les périodes.', noDataYet:'Pas encore de données', noData:'Aucune donnée', lanes:'Chronologie par disque',
+    viewTitle:'Disques', groupDrives:'Afficher les pools et arrays regroupés', arrayName:'Array', disk_one:'{n} disque', disk_other:'{n} disques', upOf:'({n} sur {total})',
+    allPools:'Tous les pools', allDisksPools:'Tous les disques et pools', dragToMove:'Faites glisser pour déplacer', traceHint:'Utilisez les flèches gauche et droite pour parcourir les périodes.', noDataYet:'Pas encore de données', noData:'Aucune donnée', lanes:'Chronologie par disque',
     legSpin:'En rotation', legIdle:'Veille', legUp:'Démarrage',
     histTitle:'Démarrages par heure de la journée', causesTitle:'Ce qui réveille les disques', eventsTitle:'Événements',
     onlyUp:'Démarrages uniquement', devFilter:'Filtrer par disque', allDisks:'Tous les disques',
@@ -536,7 +550,8 @@ const I18N = {
     prev_1:'Vorheriger Tag', next_1:'Nächster Tag', prev_7:'Vorherige Woche', next_7:'Nächste Woche',
     prev_30:'Vorheriger Monat', next_30:'Nächster Monat',
     settings:'Einstellungen', done:'Fertig', cardsTitle:'Karten', cardsNote:'Wähle, welche Karten angezeigt werden und in welcher Reihenfolge.', moveUp:'{name} nach oben', moveDown:'{name} nach unten', movedTo:'{name}: Position {n} von {total}', resetCards:'Standardanordnung wiederherstellen',
-    traceHint:'Mit den Pfeiltasten links und rechts gehst du die Zeitabschnitte durch.', noDataYet:'Noch keine Daten', noData:'Keine Daten', lanes:'Zeitleiste pro Festplatte',
+    viewTitle:'Festplatten', groupDrives:'Pools und Arrays zusammengefasst anzeigen', arrayName:'Array', disk_one:'{n} Festplatte', disk_other:'{n} Festplatten', upOf:'({n} von {total})',
+    allPools:'Alle Pools', allDisksPools:'Alle Festplatten und Pools', dragToMove:'Zum Verschieben ziehen', traceHint:'Mit den Pfeiltasten links und rechts gehst du die Zeitabschnitte durch.', noDataYet:'Noch keine Daten', noData:'Keine Daten', lanes:'Zeitleiste pro Festplatte',
     legSpin:'Läuft', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups nach Tageszeit', causesTitle:'Was weckt die Festplatten', eventsTitle:'Ereignisse',
     onlyUp:'Nur Spin-ups', devFilter:'Nach Festplatte filtern', allDisks:'Alle Festplatten',
@@ -582,7 +597,8 @@ const I18N = {
     prev_1:'Día anterior', next_1:'Día siguiente', prev_7:'Semana anterior', next_7:'Semana siguiente',
     prev_30:'Mes anterior', next_30:'Mes siguiente',
     settings:'Ajustes', done:'Listo', cardsTitle:'Tarjetas', cardsNote:'Elige qué tarjetas ver y en qué orden.', moveUp:'Subir {name}', moveDown:'Bajar {name}', movedTo:'{name}: posición {n} de {total}', resetCards:'Restaurar la disposición predeterminada',
-    traceHint:'Usa las flechas izquierda y derecha para recorrer los periodos.', noDataYet:'Todavía no hay datos', noData:'Sin datos', lanes:'Cronología por disco',
+    viewTitle:'Discos', groupDrives:'Mostrar pools y arrays agrupados', arrayName:'Array', disk_one:'{n} disco', disk_other:'{n} discos', upOf:'({n} de {total})',
+    allPools:'Todos los pools', allDisksPools:'Todos los discos y pools', dragToMove:'Arrastra para mover', traceHint:'Usa las flechas izquierda y derecha para recorrer los periodos.', noDataYet:'Todavía no hay datos', noData:'Sin datos', lanes:'Cronología por disco',
     legSpin:'Girando', legIdle:'Reposo', legUp:'Arranque',
     histTitle:'Arranques por hora del día', causesTitle:'Qué despierta los discos', eventsTitle:'Eventos',
     onlyUp:'Solo arranques', devFilter:'Filtrar por disco', allDisks:'Todos los discos',
@@ -714,11 +730,72 @@ function dur(ms){
   const d = Math.floor(h/24), rh = h%24;
   return rh ? `${d} ${D} ${rh} ${H}` : `${d} ${D}`;
 }
-const nameOf = dev => (data.names || {})[dev] || dev;
+const nameOf = dev => dev === ARRAY ? t('arrayName') : (view && view.names[dev]) || (data.names || {})[dev] || dev;
 function devOrder(a, b){
   const na = nameOf(a), nb = nameOf(b);
-  const rank = n => /^parity/.test(n) ? 0 : /^disk\d/.test(n) ? 1 : /^sd/.test(n) ? 3 : 2;
-  return rank(na) - rank(nb) || na.localeCompare(nb, undefined, {numeric:true});
+  const rank = d => d === ARRAY ? -1 : /^parity/.test(nameOf(d)) ? 0 : /^disk\d/.test(nameOf(d)) ? 1 : /^sd/.test(nameOf(d)) ? 3 : 2;
+  return rank(a) - rank(b) || na.localeCompare(nb, undefined, {numeric:true});
+}
+
+/* ---------- weergave: een pool of de array als één baan (instellingen) ---------- */
+// Alleen in de frontend: de dagbestanden blijven per schijf. Een groep krijgt een eigen sleutel
+// ('pool:trunk', 'array') met samengevoegde overgangen: hij draait zodra minstens één lid draait.
+// Poolleden herkennen we aan de naam uit disks.ini (trunk, trunk2), net als mount_base() in de backend.
+const GROUP_KEY = 'spindash.group', ARRAY = 'array';
+// Eén schakelaar voor pools en array samen: {merge: true|false}, standaard aan
+function loadGroupOpt(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(GROUP_KEY)); } catch (e) {}
+  const on = s && typeof s.merge === 'boolean' ? s.merge : true;
+  return {pools: on, array: on};
+}
+let groupOpt = loadGroupOpt();
+let view = null;                         // {data, opt, disks:{sleutel:[overgangen]}, names, members:{sleutel:[devs]}}
+function groupKey(dev){
+  const n = (data.names || {})[dev];
+  if (!n || /^sd[a-z]+$/.test(n)) return null;                     // geen naam uit disks.ini
+  if (/^(parity\d*|disk\d+)$/.test(n)) return groupOpt.array ? ARRAY : null;
+  return groupOpt.pools ? 'pool:' + n.replace(/\d+$/, '') : null;
+}
+// Overgangen van een groep: per lid de laatste status bijhouden, alleen wijzigingen van "een lid draait" bewaren
+function mergeTransitions(lists){
+  const all = lists.flatMap((l, k) => l.map(x => ({...x, k}))).sort((p, q) => p.t - q.t);
+  const st = new Array(lists.length).fill(null), out = [];
+  for (const x of all){
+    st[x.k] = x.st;
+    const g = st.includes('up') ? 'up' : 'down', last = out[out.length - 1];
+    if (!last || last.st !== g) out.push(x.snap ? {t: x.t, st: g, snap: true} : {t: x.t, st: g});
+  }
+  return out;
+}
+function getView(){
+  if (view && view.data === data && view.opt === groupOpt) return view;
+  const groups = {};
+  for (const dev of Object.keys(data.disks)){
+    const k = groupKey(dev) || dev;
+    (groups[k] = groups[k] || []).push(dev);
+  }
+  const v = {data, opt: groupOpt, disks: {}, names: {}, members: {}};
+  for (const [k, devs] of Object.entries(groups)){
+    if (devs.length < 2 || k === devs[0]){                           // los of maar één lid: gewoon de schijf
+      for (const d of devs) v.disks[d] = data.disks[d];
+      continue;
+    }
+    v.disks[k] = mergeTransitions(devs.map(d => data.disks[d]));
+    if (k !== ARRAY) v.names[k] = (data.names[devs[0]] || '').replace(/\d+$/, '');
+    v.members[k] = devs;
+  }
+  view = v;
+  return v;
+}
+const viewDevs = () => Object.keys(getView().disks).sort(devOrder);
+const membersOf = dev => (view && view.members[dev]) || [dev];
+// Hoeveel leden draaien er hooguit tegelijk tussen `from` en `to` (voor de tooltip van een groep)
+function upMembers(dev, from, to){
+  const ms = membersOf(dev);
+  const upAt = at => ms.filter(d => { let st = null; for (const x of data.disks[d]){ if (x.t > at) break; st = x.st; } return st === 'up'; }).length;
+  const times = [from, ...ms.flatMap(d => data.disks[d].map(x => x.t)).filter(x => x > from && x < to)];
+  return Math.max(...times.map(upAt));
 }
 function evLabel(ev){
   if (/SMB/.test(ev)) return t('viaShare');
@@ -769,7 +846,13 @@ const hasAct = () => data.act && data.act.length > 0;
 // Welke activiteit hoort bij deze schijf? Poolleden (trunk2) horen bij de mount (trunk);
 // parity spint alleen op bij writes, dus daarvoor tellen writes op alle schijven.
 function matcherFor(dev){
-  const name = nameOf(dev), parity = /^parity/.test(name);
+  const ms = membersOf(dev);
+  if (ms.length > 1){
+    // groep: de activiteit van de leden; parity voegt niets toe zolang er dataschijven in zitten
+    const own = ms.map(matcherFor).filter(m => !m.parity), use = own.length ? own : ms.map(matcherFor);
+    return {parity: !own.length, test: e => use.some(m => m.test(e))};
+  }
+  const name = (data.names || {})[dev] || dev, parity = /^parity/.test(name);
   const base = /^disk\d+$/.test(name) ? name : name.replace(/\d+$/, '');
   return {parity, test: e => parity ? WRITES.test(e.ev) : (e.disk === name || e.disk === base)};
 }
@@ -969,7 +1052,7 @@ function render(){
   hideInfo();
   const [a,b] = bounds(); const span = b - a || 1;
   const X = t => ((t - a)/span*1000).toFixed(2);
-  const devs = Object.keys(data.disks).sort(devOrder);
+  const devs = viewDevs();
 
   document.querySelectorAll('[data-range]').forEach(btn => btn.setAttribute('aria-pressed', btn.dataset.range === range));
   $('nav').hidden = range === 'all';
@@ -981,7 +1064,7 @@ function render(){
       $(id).title = t(k + range); $(id).setAttribute('aria-label', t(k + range));
     }
   }
-  $('sourceLine').innerHTML = esc(t('summary', {n: devs.length, from: fmtFull.format(a), to: fmtFull.format(b)})) +
+  $('sourceLine').innerHTML = esc(t('summary', {n: Object.keys(data.disks).length, from: fmtFull.format(a), to: fmtFull.format(b)})) +
     (data.demo ? `<span class="demo-note">${esc(t('demo'))}</span>` : '') +
     (data.source === LIVE && offset === 0 ? `<span class="demo-note">${esc(t('live', {time: fmtTime.format(Date.now())}))}</span>` : '');
 
@@ -1014,7 +1097,7 @@ function render(){
   const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest('.trace');
   const keep = focused ? {dev: focused.dataset.dev, i: traceFocus && traceFocus.dev === focused.dataset.dev ? traceFocus.i : null} : null;
   $('laneList').innerHTML = devs.map(dev => {
-    const segs = segments(data.disks[dev], a, b);
+    const segs = segments(view.disks[dev], a, b);
     const y = st => st === 'up' ? 6 : 34;
     let wave = `M0 ${y(segs[0].st)}`, fill = '', marks = '', guess = '';
     let activeMs = 0, ups = 0;
@@ -1030,7 +1113,7 @@ function render(){
     });
     const pct = Math.round(activeMs/span*100), name = nameOf(dev);
     return `<div class="row lane">
-      <div class="lane-name">${esc(name)}${name !== dev ? `<small>${esc(dev)}</small>` : ''}</div>
+      <div class="lane-name">${esc(name)}${laneSub(dev, name)}</div>
       <div class="trace" data-dev="${esc(dev)}" tabindex="0" role="group" aria-label="${esc(t('laneAria', {name, ups, pct}))}" aria-describedby="traceHint">
         <svg viewBox="0 0 1000 40" preserveAspectRatio="none" aria-hidden="true">
           <path class="grid" d="${gridPath}" vector-effect="non-scaling-stroke"/>
@@ -1110,7 +1193,10 @@ function render(){
 
   // filter + tabel
   const sel = $('devFilter'), cur = sel.value || '';
-  sel.innerHTML = `<option value="">${esc(t('allDisks'))}</option>` +
+  // "alle"-optie zegt wat er in de lijst staat: losse schijven, alleen pools, of een mix (de array telt als schijven)
+  const pools = devs.filter(d => d.startsWith('pool:') && membersOf(d).length > 1).length;
+  const allKey = !pools ? 'allDisks' : pools === devs.length ? 'allPools' : 'allDisksPools';
+  sel.innerHTML = `<option value="">${esc(t(allKey))}</option>` +
     devs.map(d => `<option value="${esc(d)}" ${d===cur?'selected':''}>${esc(nameOf(d))}</option>`).join('');
   renderEvents(a, b);
   bindTips(a, b);
@@ -1307,7 +1393,7 @@ function groupCause(items){
 
 function renderEvents(a, b){
   const f = $('devFilter').value, onlyUp = $('onlyUp').checked, rows = [];
-  for (const [dev, list] of Object.entries(data.disks)){
+  for (const [dev, list] of Object.entries(getView().disks)){
     if (f && dev !== f) continue;
     list.forEach((x,i) => {
       if (x.snap || x.t < a || x.t > b || (onlyUp && x.st !== 'up')) return;
@@ -1361,8 +1447,16 @@ $('events').addEventListener('click', e => {
 });
 
 // Tooltipregels voor één segment van een baan: [naam, status, tijdspanne, eventueel de oorzaak]
+// Onderregel van een baan: het device, bij een pool de devices van de leden, bij de array het aantal schijven
+function laneSub(dev, name){
+  const ms = membersOf(dev);
+  const sub = dev === ARRAY ? tn('disk', ms.length) : ms.length > 1 ? ms.slice().sort().join(', ') : name !== dev ? dev : '';
+  return sub ? `<small>${esc(sub)}</small>` : '';
+}
 function segLines(dev, s, a){
-  const lines = [nameOf(dev), t(s.st === 'up' ? 'tipUp' : 'tipDown') + (s.guessed ? ' ' + t('assumed') : ''),
+  const ms = membersOf(dev);
+  const many = ms.length > 1 && s.st === 'up' && !s.guessed ? ' ' + t('upOf', {n: upMembers(dev, Math.max(s.from, a), s.to), total: ms.length}) : '';
+  const lines = [nameOf(dev), t(s.st === 'up' ? 'tipUp' : 'tipDown') + many + (s.guessed ? ' ' + t('assumed') : ''),
     t('tipSpan', {from: fmtFull.format(s.from), to: fmtTime.format(s.to), dur: dur(s.to - s.from)})];
   if (s.st === 'up' && !s.guessed && !s.snap && s.from > a){
     const c = causeOf(dev, s.from);
@@ -1386,7 +1480,7 @@ let traceFocus = null;   // {dev, i}: baan met toetsenbordfocus, zodat een nieuw
 function bindTips(a, b){
   const tip = $('tip');
   document.querySelectorAll('.trace').forEach(el => {
-    const dev = el.dataset.dev, segs = segments(data.disks[dev], a, b);
+    const dev = el.dataset.dev, segs = segments(getView().disks[dev], a, b);
     el.onpointermove = e => {
       const r = el.getBoundingClientRect();
       const at = a + (e.clientX - r.left)/r.width*(b - a);
@@ -1474,6 +1568,7 @@ function renderCardList(focusSel){
   $('cardList').innerHTML = cards.map((c, i) => {
     const name = t(CARD_TITLES[c.id]), up = t('moveUp', {name}), down = t('moveDown', {name});
     return `<li data-card="${c.id}">
+      <span class="grip" title="${esc(t('dragToMove'))}" aria-hidden="true"><svg viewBox="0 0 10 16" fill="currentColor"><circle cx="2.5" cy="3" r="1.5"/><circle cx="7.5" cy="3" r="1.5"/><circle cx="2.5" cy="8" r="1.5"/><circle cx="7.5" cy="8" r="1.5"/><circle cx="2.5" cy="13" r="1.5"/><circle cx="7.5" cy="13" r="1.5"/></svg></span>
       <label><input type="checkbox"${c.hidden ? '' : ' checked'}> ${esc(name)}</label>
       <span class="set-move">
         <button type="button" class="btn" data-move="-1" aria-label="${esc(up)}" title="${esc(up)}"${i === 0 ? ' disabled' : ''}>↑</button>
@@ -1499,6 +1594,35 @@ $('cardList').addEventListener('click', e => {
   renderCardList(`li[data-card="${id}"] [data-move="${edge ? -btn.dataset.move : btn.dataset.move}"]`);
   $('cardLive').textContent = t('movedTo', {name: t(CARD_TITLES[id]), n: j + 1, total: cards.length});
 });
+// Slepen aan het handvat met muis of vinger: de rij schuift naar de plek waar de aanwijzer
+// voorbij het midden van een andere rij komt. Bij loslaten wordt de nieuwe volgorde bewaard.
+let drag = null;
+$('cardList').addEventListener('pointerdown', e => {
+  const grip = e.target.closest('.grip'); if (!grip) return;
+  e.preventDefault();
+  drag = {li: grip.closest('li')};
+  drag.li.classList.add('dragging'); $('cardList').classList.add('is-dragging');
+  if (grip.setPointerCapture && e.pointerId != null) try { grip.setPointerCapture(e.pointerId); } catch (err) {}
+});
+$('cardList').addEventListener('pointermove', e => {
+  if (!drag) return;
+  const list = $('cardList'), others = [...list.children].filter(li => li !== drag.li);
+  const i = others.filter(li => { const r = li.getBoundingClientRect(); return r.top + r.height / 2 < e.clientY; }).length;
+  const ref = others[i] || null;
+  if (drag.li.nextElementSibling !== ref) list.insertBefore(drag.li, ref);
+});
+function endDrag(){
+  if (!drag) return;
+  const id = drag.li.dataset.card, order = [...$('cardList').children].map(li => li.dataset.card);
+  drag.li.classList.remove('dragging'); $('cardList').classList.remove('is-dragging');
+  drag = null;
+  if (order.join() === cards.map(c => c.id).join()) return;
+  cards = order.map(k => cards.find(c => c.id === k));
+  saveCards(); applyCards(); renderCardList();
+  $('cardLive').textContent = t('movedTo', {name: t(CARD_TITLES[id]), n: order.indexOf(id) + 1, total: cards.length});
+}
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', endDrag);
 $('resetCards').onclick = () => {
   cards = defaultCards();
   try { localStorage.removeItem(CARDS_KEY); } catch (e) {}
@@ -1519,8 +1643,22 @@ function onSettingsClosed(){ $('openSettings').setAttribute('aria-expanded', 'fa
 $('openSettings').onclick = openSettings;
 $('settingsDone').onclick = closeSettings;
 $('settings').addEventListener('close', onSettingsClosed);
-$('settings').addEventListener('click', e => { if (e.target === $('settings')) closeSettings(); });   // klik op de achtergrond
+// klik op de achtergrond sluit; een klik in de eigen opvulling van de dialoog heeft ook de dialoog als target
+$('settings').addEventListener('click', e => {
+  if (e.target !== $('settings')) return;
+  const r = e.target.getBoundingClientRect();
+  if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) closeSettings();
+});
 applyCards();
+
+// pools/array samenvoegen: onthouden in de browser en meteen opnieuw tekenen
+$('groupDrives').checked = groupOpt.pools;
+$('groupDrives').onchange = () => {
+  const on = $('groupDrives').checked;
+  groupOpt = {pools: on, array: on};
+  try { localStorage.setItem(GROUP_KEY, JSON.stringify({merge: on})); } catch (e) {}
+  if (data) render();
+};
 $('devFilter').onchange = $('onlyUp').onchange = () => { const [a,b] = bounds(); renderEvents(a,b); };
 let resizeTimer;
 addEventListener('resize', () => {
@@ -1773,7 +1911,7 @@ let liveTimer = null, livePending = false;
 function scheduleLive(){
   if (liveTimer){ livePending = true; return; }
   renderFeed();
-  renderActDrives(...bounds(), Object.keys(data.disks).sort(devOrder));
+  renderActDrives(...bounds(), viewDevs());
   liveTimer = setTimeout(() => { liveTimer = null; if (livePending){ livePending = false; scheduleLive(); } }, 300);
 }
 })();
