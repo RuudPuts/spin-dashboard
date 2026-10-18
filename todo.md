@@ -14,7 +14,6 @@ Open work, roughly by priority. Move finished items to `completed.md`.
 - [ ] Test SAS drives and HBAs; validate the `smartctl -n standby` fallback
 - [ ] Optional: notifications (Unraid notification or webhook) for spin-ups outside a configured window
 - [ ] Optional: set an "expected night window" per pool and highlight deviations
-- [ ] Group containers by Docker Compose project (`project` is already in `/data/containers.json`)
 - [ ] Bytes per container: only possible for direct `/mnt/diskN` or pool mappings, see `docs/decisions.md`
 
 ## Design (from the 2026-10-16 audit, medium priority)

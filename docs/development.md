@@ -60,7 +60,9 @@ moments with 60% of the gaps within 15% of the median, a daily time at least 3 d
 within 30 minutes of the median. Because the same file is logged at most once per `DEDUP_SECONDS`, anything
 more frequent shows as that interval. The comparison uses the period of the same length right before the shown one,
 and only when the data covers all of it; "All" has no comparison. Lane grouping is stored under `spindash.group` as
-`{merge}` (default `true`, pools and the array together); it only changes the view, the day files stay per drive.
+`{merge, compose}`: `merge` (default `true`) shows pools and the array as one lane each, `compose` (default `false`)
+counts the containers of one Docker Compose project (the `project` label from `/data/containers.json`) as one source
+in the source cards and the profile. Both only change the view; the day files stay per drive and per container.
 Hidden paths are a JSON list of patterns (`*` anything, `?` one character), stored on the server in
 `DATA_DIR/spindash-settings.json` via `/data/settings.json` (see `docs/data-formats.md`), so every browser
 sees the same list. The frontend loads them before the first data fetch and saves them on every change.

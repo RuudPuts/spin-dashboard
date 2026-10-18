@@ -761,7 +761,7 @@ test('the array is one lane by default, and one switch shows every drive again',
   box.checked = false; box.dispatchEvent(new w.Event('change'));
   assert.deepEqual(laneNames(d), ['parity sdb', 'disk1 sdc', 'disk2 sdf', 'trunk sdd', 'trunk2 sde']);
   assert.equal(text(d.querySelector('#devFilter option')), 'Alle schijven');
-  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.group')), { merge: false });
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.group')), { merge: false, compose: false });
   dom.window.close();
 });
 
@@ -1420,5 +1420,33 @@ test('CSV cells with commas or quotes are quoted', async () => {
   dom.window.document.getElementById('exportCsv').click();
   const csv = await blobText(dom.window, dom.window.__blob);
   assert.match(csv, /,opened,"\/mnt\/trunk\/Media\/a, ""b"".mkv"\r\n/);
+  dom.window.close();
+});
+
+test('containers of one Compose project can count as one source', async () => {
+  const containers = { docker: true, containers: [
+    { name: 'plex', state: 'running', project: 'media', mounts: [] },
+    { name: 'sonarr', state: 'running', project: 'media', mounts: [] },
+    { name: 'radarr', state: 'running', project: '', mounts: [] },
+  ] };
+  const files = { ...DOCK, 'containers.json': JSON.stringify(containers) };
+  const dom = await load(files);
+  const d = dom.window.document, w = dom.window;
+  const keys = () => [...d.querySelectorAll('#sources .srcbtn')].map((b) => b.dataset.src);
+  assert.ok(keys().includes('container|plex') && keys().includes('container|sonarr'));   // standaard uit
+  d.getElementById('openSettings').click();
+  const box = d.getElementById('groupCompose');
+  box.checked = true; box.dispatchEvent(new w.Event('change'));
+  assert.ok(keys().includes('container|media') && !keys().includes('container|plex') && !keys().includes('container|sonarr'));
+  const media = [...d.querySelectorAll('#sources .src')].find((x) => x.querySelector('[data-src="container|media"]'));
+  assert.match(text(media), /media stack 1 veroorzaakte spin-ups 2 gelezen · 1 geschreven/);   // plex wekte 1×, las 2×; sonarr schreef 1×
+  assert.equal(media.querySelector('.srcbtn').title, 'Compose-project media: plex, sonarr');
+  // de start van plex hoort nu bij de stack
+  const lane = d.querySelector('#srcLaneList .srow[data-k="container|media"]');
+  assert.equal((lane.querySelector('.cs').getAttribute('d').match(/M/g) || []).length, 1);
+  d.querySelector('[data-src="container|media"]').click();
+  assert.match(text(d.getElementById('profileBody')), /Start en stop\s*Start plex/);
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.group')), { merge: true, compose: true });
+  assert.match([...d.querySelectorAll('#feed li')].map(text).join('\n'), /plex › Plex Media Scan/);   // de feed blijft per container
   dom.window.close();
 });

@@ -2,6 +2,9 @@
 
 Newest first.
 
+## 2026-10-18: Compose projects as one source
+- Settings › Drives has a switch to count the containers of one Docker Compose project as one source (off by default, remembered in `spindash.group`): the source cards and the profile then show the project with a "stack" label, its containers in the tooltip, and the start/stop events of all its containers. The live feed stays per container
+
 ## 2026-10-18: CSV export
 - A CSV button in Events downloads the selected period: spin-ups, standby and measured state per drive, file access with source, process, action and path, and container events (a restart as die + start, with the exit code). Hidden paths stay out; columns and values are English; format in `docs/data-formats.md`
 
