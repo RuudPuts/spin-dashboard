@@ -32,6 +32,7 @@ def sd(tmp_path, monkeypatch):
     monkeypatch.setenv("TZ", "Europe/Amsterdam")      # dagen en dagstart vast voor de tests
     time.tzset()
     monkeypatch.setattr(spindash, "EMHTTP", str(tmp_path / "emhttp"))
+    monkeypatch.setattr(spindash, "DOCKER_ICONS", str(tmp_path / "emhttp" / "docker_icons.xml"))
     monkeypatch.setattr(spindash, "SYS_BLOCK", str(tmp_path / "sys"))
     monkeypatch.setattr(spindash, "PROC", str(tmp_path / "proc"))
     monkeypatch.setattr(spindash, "MOUNTS_FILE", str(tmp_path / "mounts"))

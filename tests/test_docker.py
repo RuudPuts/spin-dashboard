@@ -187,7 +187,7 @@ def test_container_icons_without_the_file(sd):
 
 
 def test_containers_info_adds_the_icon_url(unraid, monkeypatch):
-    (sd._tmp / "emhttp" / "docker_icons.xml").write_text(
+    (unraid._tmp / "emhttp" / "docker_icons.xml").write_text(
         '<Containers><template Name="plex" Icon="https://icon.example/plex.png"/></Containers>\n')
     fake = FakeDocker({"/containers/json": [
         {"Names": ["/plex"], "State": "running", "Labels": {}, "Mounts": []},
