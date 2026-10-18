@@ -642,7 +642,7 @@ test('the settings button opens a dialog with the language choice and the card l
   assert.ok(d.getElementById('settings').hasAttribute('open'));
   assert.equal(gear.getAttribute('aria-expanded'), 'true');
   const names = [...d.querySelectorAll('#cardList li label')].map(text);
-  assert.deepEqual(names, ['Tijdlijn per schijf', 'Spin-ups per uur van de dag', 'Wat maakt de schijven wakker',
+  assert.deepEqual(names, ['Kerncijfers', 'Tijdlijn per schijf', 'Spin-ups per dag', 'Spin-ups per uur van de dag', 'Wat maakt de schijven wakker',
     'Actieve schijven: lezen', 'Actieve schijven: schrijven', 'Live activiteit', 'Gebeurtenissen']);
   d.getElementById('settingsDone').click();
   assert.ok(!d.getElementById('settings').hasAttribute('open'));
@@ -653,24 +653,23 @@ test('the settings button opens a dialog with the language choice and the card l
 test('cards can be hidden and moved, and the layout is remembered', async () => {
   const dom = await load(POOL);
   const d = dom.window.document, w = dom.window;
-  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'actR', 'actW', 'feed', 'events']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'actR', 'actW', 'feed', 'events']);
   d.getElementById('openSettings').click();
   const box = d.querySelector('#cardList li[data-card="actR"] input');
   box.checked = false; box.dispatchEvent(new w.Event('change', { bubbles: true }));
   assert.equal(d.querySelector('#dash > [data-card="actR"]').hidden, true);
   d.querySelector('#cardList li[data-card="events"] [data-move="-1"]').click();   // gebeurtenissen één omhoog
-  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'actW', 'events', 'feed']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'actW', 'events', 'feed']);
   assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="events"] [data-move="-1"]'));
-  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 6 van 7');
-  d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').click();     // de histogram naar boven
-  d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').click();
+  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 8 van 9');
+  for (let i = 0; i < 3; i++) d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').click();   // de histogram naar boven
   assert.equal(d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').disabled, true);
   assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="hist"] [data-move="1"]'));   // bovenaan: focus naar omlaag
   const saved = w.localStorage.getItem('spindash.cards');
   dom.window.close();
 
   const again = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w2) => w2.localStorage.setItem('spindash.cards', saved));
-  assert.deepEqual(cardOrder(again.window.document), ['hist', 'lanes', 'causes', 'actW', 'events', 'feed']);
+  assert.deepEqual(cardOrder(again.window.document), ['hist', 'kpi', 'lanes', 'days', 'causes', 'actW', 'events', 'feed']);
   again.window.close();
 });
 
@@ -678,10 +677,10 @@ test('a saved layout with unknown or missing cards still shows every known card'
   const stored = JSON.stringify([{ id: 'feed' }, { id: 'nope' }, { id: 'feed', hidden: true }, { id: 'hist', hidden: true }]);
   const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.cards', stored));
   const d = dom.window.document;
-  assert.deepEqual(cardOrder(d), ['feed', 'lanes', 'causes', 'actR', 'actW', 'events']);
+  assert.deepEqual(cardOrder(d), ['feed', 'kpi', 'lanes', 'days', 'causes', 'actR', 'actW', 'events']);
   d.getElementById('openSettings').click();
   d.getElementById('resetCards').click();
-  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'actR', 'actW', 'feed', 'events']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'actR', 'actW', 'feed', 'events']);
   assert.equal(dom.window.localStorage.getItem('spindash.cards'), null);
   dom.window.close();
 });
@@ -691,7 +690,7 @@ test('a saved layout with the old Active drives card gets the reading and writin
   const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.cards', stored));
   const d = dom.window.document;
   assert.deepEqual([...d.querySelectorAll('#dash > [data-card]')].map((el) => el.dataset.card),
-    ['actR', 'actW', 'lanes', 'events', 'hist', 'causes', 'feed']);
+    ['actR', 'actW', 'lanes', 'events', 'hist', 'causes', 'feed', 'kpi', 'days']);
   assert.equal(d.querySelector('#dash > [data-card="actR"]').hidden, true);   // verborgen blijft verborgen
   assert.equal(d.querySelector('#dash > [data-card="actW"]').hidden, true);
   dom.window.close();
@@ -701,7 +700,7 @@ test('every card except the timeline and the events is half width on a wide scre
   const dom = await load(POOL);
   const d = dom.window.document;
   const half = [...d.querySelectorAll('#dash > [data-card]')].filter((el) => el.hasAttribute('data-half')).map((el) => el.dataset.card);
-  assert.deepEqual(half, ['hist', 'causes', 'actR', 'actW', 'feed']);
+  assert.deepEqual(half, ['days', 'hist', 'causes', 'actR', 'actW', 'feed']);
   assert.match(HTML, /#dash>\.card\[data-half\]\{grid-column:auto\}/);
   assert.match(HTML, /@media \(max-width:820px\)\{[^@]*#dash>\.card\[data-half\]\{grid-column:1\/-1\}/);   // telefoon: volle breedte
   dom.window.close();
@@ -713,7 +712,7 @@ test('changing the language in settings also translates the card list', async ()
   d.getElementById('openSettings').click();
   const sel = d.getElementById('lang');
   sel.value = 'de'; sel.dispatchEvent(new w.Event('change'));
-  assert.equal(text(d.querySelector('#cardList li label')), 'Zeitleiste pro Festplatte');
+  assert.equal(text(d.querySelector('#cardList li label')), 'Kennzahlen');
   assert.equal(d.getElementById('openSettings').getAttribute('aria-label'), 'Einstellungen');
   dom.window.close();
 });
@@ -781,17 +780,17 @@ test('cards can be dragged into a new order by their handle', async () => {
   }
   const ev = (type, el, y) => el.dispatchEvent(new w.MouseEvent(type, { bubbles: true, cancelable: true, clientY: y }));
   const grip = d.querySelector('#cardList li[data-card="events"] .grip');
-  ev('pointerdown', grip, 284);
+  ev('pointerdown', grip, 374);
   assert.ok(grip.closest('li').classList.contains('dragging'));
   ev('pointermove', grip, 150);   // nog geen opslag tijdens het slepen
   ev('pointermove', grip, 50);    // tussen de eerste en tweede rij
   assert.equal(w.localStorage.getItem('spindash.cards'), null);
   ev('pointerup', d, 50);
-  assert.deepEqual(cardOrder(d), ['lanes', 'events', 'hist', 'causes', 'actR', 'actW', 'feed']);
-  assert.deepEqual([...d.querySelectorAll('#cardList li')].map((li) => li.dataset.card), ['lanes', 'events', 'hist', 'causes', 'actR', 'actW', 'feed']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'actR', 'actW', 'feed']);
+  assert.deepEqual([...d.querySelectorAll('#cardList li')].map((li) => li.dataset.card), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'actR', 'actW', 'feed']);
   assert.ok(!d.querySelector('#cardList .dragging'));
-  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 2 van 7');
-  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.cards')).map((c) => c.id), ['lanes', 'events', 'hist', 'causes', 'actR', 'actW', 'feed']);
+  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 2 van 9');
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.cards')).map((c) => c.id), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'actR', 'actW', 'feed']);
   // de handgreep zit buiten het label: slepen zet het kaartje niet aan of uit
   assert.ok(!d.querySelector('#cardList li label .grip'));
   dom.window.close();
@@ -924,5 +923,74 @@ test('demo mode never asks the server for settings', async () => {
   setHide(w.document, w, '*.srt');
   await hideSettled();
   assert.deepEqual(w.__posts, []);
+  dom.window.close();
+});
+
+// ---------- kerncijfers en spin-ups per dag ----------
+// Vorige 24 uur: 3 spin-ups (3,5 uur draaien); laatste 24 uur: 1 spin-up (1 uur).
+const HISTORY = [
+  `${ep(3000)},disk,sdd,trunk`, `${ep(3000)},state,sdd,standby`,
+  `${ep(2000)},spin,sdd,active`, `${ep(1990)},spin,sdd,standby`,
+  `${ep(1800)},spin,sdd,active`, `${ep(1700)},spin,sdd,standby`,
+  `${ep(1600)},spin,sdd,active`, `${ep(1500)},spin,sdd,standby`,
+  `${ep(1000)},spin,sdd,active`, `${ep(940)},spin,sdd,standby`,
+  `${ep(900)},who,container,plex,4,geopend,/mnt/trunk/Media/series/c.mkv`,
+];
+const byDay = (lines) => {
+  const out = {};
+  for (const l of lines) (out[dayName(+l.split(',')[0] * 1000)] ||= []).push(l);
+  return served(out);
+};
+const kpi = (d, key) => d.querySelector(`[data-kpi="${key}"]`);
+
+test('key figures show the period and compare with the previous one', async () => {
+  const spinsOnly = HISTORY.filter((l) => !/,who,/.test(l)).join('\n') + '\n';
+  const dom = await load({ ...byDay(HISTORY), 'spins.csv': spinsOnly });
+  const d = dom.window.document;
+  assert.ok(dom.window.__fetched.includes('data/spins.csv'));
+  assert.equal(text(kpi(d, 'kpiUps').querySelector('.k-val')), '1');
+  assert.match(text(kpi(d, 'kpiUps').querySelector('.k-cmp')), /^▼ −67% \(beter\) · Vorige dag: 3$/);
+  assert.ok(kpi(d, 'kpiUps').querySelector('.k-cmp').classList.contains('better'));
+  assert.equal(text(kpi(d, 'kpiHours').querySelector('.k-val')), '1 u');
+  assert.match(text(kpi(d, 'kpiHours').querySelector('.k-cmp')), /Vorige dag: 3,5 u$/);
+  assert.equal(text(kpi(d, 'kpiRest').querySelector('.k-val')), '96%');
+  assert.match(text(kpi(d, 'kpiRest').querySelector('.k-cmp')), /^▲ \+10 procentpunt \(beter\) · Vorige dag: 85%$/);
+  assert.equal(text(kpi(d, 'kpiLongest').querySelector('.k-val')), '15 u 40 min');
+  assert.equal(d.getElementById('kpiNote').textContent, '');
+  dom.window.close();
+});
+
+test('without spins.csv (older server) the key figures use the loaded days', async () => {
+  const dom = await load(byDay(HISTORY));
+  const d = dom.window.document;
+  assert.equal(text(kpi(d, 'kpiUps').querySelector('.k-val')), '1');
+  assert.match(text(kpi(d, 'kpiUps').querySelector('.k-cmp')), /Vorige dag: 3$/);
+  dom.window.close();
+});
+
+test('key figures say when there is no previous period to compare with', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document;
+  assert.equal(d.querySelectorAll('.k-cmp').length, 0);
+  assert.equal(d.getElementById('kpiNote').textContent, 'Nog te weinig geschiedenis om met de vorige periode te vergelijken.');
+  d.querySelector('[data-range="all"]').click();          // "alles" heeft geen vorige periode, en dat is geen gebrek
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(d.getElementById('kpiNote').textContent, '');
+  dom.window.close();
+});
+
+test('spin-ups per day shows every day with the selected period highlighted', async () => {
+  const spinsOnly = HISTORY.filter((l) => !/,who,/.test(l)).join('\n') + '\n';
+  const dom = await load({ ...byDay(HISTORY), 'spins.csv': spinsOnly });
+  const d = dom.window.document;
+  const bars = [...d.querySelectorAll('#daysHist > div')];
+  const first = new Date((now / 1000 - 3000 * 60) * 1000); first.setHours(0, 0, 0, 0);
+  const expect = Math.round((new Date(today + 'T00:00').getTime() - first.getTime()) / 864e5) + 1;
+  assert.equal(bars.length, expect);
+  const counts = bars.map((b) => +b.getAttribute('aria-label').match(/: (\d+) spin-ups$/)[1]);
+  assert.equal(counts.reduce((x, y) => x + y, 0), 4);
+  assert.ok(bars[bars.length - 1].classList.contains('in'));   // vandaag valt in de laatste 24 uur
+  assert.ok(!bars[0].classList.contains('in'));
+  assert.match(d.getElementById('daysNote').textContent, new RegExp(`^Laatste ${expect} dagen, gemiddeld `));
   dom.window.close();
 });

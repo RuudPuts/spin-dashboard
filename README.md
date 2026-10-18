@@ -7,7 +7,9 @@ See when your hard drives spin up and down, and **why**.
   <img alt="Spin Dashboard: a timeline per lane with every spin-up, spin-ups per hour of day, what wakes the drives, the active drives, live activity and a table of events with the cause of each spin-up" src="docs/images/screenshot-light.png">
 </picture>
 
+- **Key figures** at the top: spin-ups, spinning hours, how much of the time all drives slept and the longest full rest, each compared with the previous period, so you see right away whether a change helped.
 - A timeline per disk: every spin-up, how long it ran, how much of the day the disk was active.
+- **Spin-ups per day**: the trend over all stored days, with the selected period highlighted.
 - The cause of each spin-up: the first file that was opened, and **who** opened it: a Docker container (Plex, Sonarr, Bazarr, …), Unraid itself (mover, cron / User Scripts, webGUI, shfs) or a user (SMB/NFS share, shell).
 - **Reads vs. writes**: each access is labelled read or write, so you can see whether a drive is being read or kept busy by writes (logs, databases, metadata).
 - **Active drives**: two cards, reading and writing, with per drive the top sources and files over the selected period — answers "why is this drive never idle", even when there were no spin-ups.

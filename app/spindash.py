@@ -15,6 +15,7 @@ Alles staat in DATA_DIR/days: één CSV per dag (YYYY-MM-DD.csv, lokale datum) m
 who.csv, activity.csv) worden bij het starten eenmalig naar dagbestanden gemigreerd.
 """
 import gzip
+import hashlib
 import http.client
 import http.server
 import json
@@ -139,6 +140,46 @@ def day_body(path, st, gz):
         _gz_cache.clear()
     _gz_cache[path] = (st.st_mtime_ns, st.st_size, body)
     return body
+
+
+_spin_cache = {}      # pad -> (mtime_ns, grootte, spin-regels); alleen de disk/state/spin-regels
+SPIN_TYPES = ("disk", "state", "spin")
+
+
+def spin_lines(path, st):
+    """De disk-, state- en spin-regels van één dagbestand. Klein (de who-regels zijn het grootste deel),
+    zodat de frontend kerncijfers en de trend over alle dagen kan tonen zonder alles op te halen."""
+    hit = _spin_cache.get(path)
+    if hit and hit[:2] == (st.st_mtime_ns, st.st_size):
+        return hit[2]
+    out = []
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            p = line.split(",", 2)
+            if len(p) == 3 and p[1] in SPIN_TYPES:
+                out.append(line if line.endswith("\n") else line + "\n")
+    text = "".join(out)
+    _spin_cache[path] = (st.st_mtime_ns, st.st_size, text)
+    return text
+
+
+def spins_body():
+    """Inhoud van /data/spins.csv: de spin-regels van alle dagen op volgorde, plus een ETag die
+    verandert zodra een dagbestand verandert."""
+    parts, tag, days = [], [], list_days()
+    for d in days:
+        path = day_path(d)
+        try:
+            st = os.stat(path)
+            parts.append(spin_lines(path, st))
+        except OSError:
+            continue
+        tag.append(f"{d}:{st.st_mtime_ns:x}:{st.st_size:x}")
+    live = {day_path(d) for d in days}
+    for path in [p for p in _spin_cache if p not in live]:      # opgeruimde dagen vergeten
+        _spin_cache.pop(path, None)
+    etag = '"s-%s"' % hashlib.sha1("|".join(tag).encode()).hexdigest()[:16]
+    return "".join(parts).encode(), etag
 
 
 def is_own_file(path):
@@ -868,7 +909,8 @@ def save_settings(new):
 # =====================================================================================
 class Handler(http.server.SimpleHTTPRequestHandler):
     """/ → dashboard, /data/days.json → lijst van dagen, /data/days/YYYY-MM-DD.csv → dagbestand,
-    /data/settings.json → instellingen (GET lezen, POST opslaan)."""
+    /data/spins.csv → alleen de spin-regels van alle dagen, /data/settings.json → instellingen
+    (GET lezen, POST opslaan)."""
     def do_GET(self):
         clean = self.path.split("?", 1)[0]
         if clean == "/data/days.json":
@@ -876,6 +918,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         if clean == "/data/settings.json":
             self.send_json(read_settings())
+            return
+        if clean == "/data/spins.csv":
+            self.send_spins()
             return
         if clean == "/data/stream":
             self.stream_events()
@@ -919,6 +964,29 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def send_spins(self):
+        body, etag = spins_body()
+        gz = "gzip" in self.headers.get("Accept-Encoding", "")
+        if gz:
+            etag = etag[:-1] + '-gz"'
+        if etag in self.headers.get("If-None-Match", ""):
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Vary", "Accept-Encoding")
+            self.end_headers()
+            return
+        if gz:
+            body = gzip.compress(body, compresslevel=6, mtime=0)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/csv; charset=utf-8")
+        if gz:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("ETag", etag)
+        self.send_header("Vary", "Accept-Encoding")
         self.end_headers()
         self.wfile.write(body)
 

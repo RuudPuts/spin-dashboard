@@ -195,3 +195,40 @@ def test_unreadable_settings_file_counts_as_empty(sd):
     open(sd.SETTINGS, "w").write(json.dumps({"hide": [3]}))
     assert sd.read_settings() == {}
     assert sd.save_settings({"hide": ["x"]}) == {"hide": ["x"]}
+
+
+# ---------- /data/spins.csv: alleen de spin-regels van alle dagen ----------
+def test_spins_returns_only_disk_state_and_spin_lines_of_every_day(server, sd):
+    open(sd.day_path("2026-10-08"), "w").write(
+        "1791410400,disk,sdd,trunk\n1791410400,state,sdd,standby\n"
+        "1791420000,who,container,plex,1,geopend,/mnt/trunk/a,b.mkv\n1791420010,spin,sdd,active\n")
+    status, body, headers = get(server + "/data/spins.csv")
+    assert status == 200
+    assert body == ("1791410400,disk,sdd,trunk\n1791410400,state,sdd,standby\n1791420010,spin,sdd,active\n"
+                    "1791496800,spin,sdd,active\n")
+    assert headers["Content-Type"].startswith("text/csv") and headers["ETag"]
+
+
+def test_spins_is_gzipped_and_answers_304_until_a_day_changes(server, sd):
+    req = urllib.request.Request(server + "/data/spins.csv", headers={"Accept-Encoding": "gzip"})
+    r = urllib.request.urlopen(req, timeout=5)
+    assert r.headers["Content-Encoding"] == "gzip"
+    assert gzip.decompress(r.read()).decode() == "1791496800,spin,sdd,active\n"
+    etag = r.headers["ETag"]
+    req = urllib.request.Request(server + "/data/spins.csv", headers={"Accept-Encoding": "gzip", "If-None-Match": etag})
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(req, timeout=5)
+    assert e.value.code == 304
+    with open(sd.day_path("2026-10-09"), "a") as f:
+        f.write("1791500000,spin,sdd,standby\n")
+    r = urllib.request.urlopen(req, timeout=5)      # dag veranderd: nieuwe inhoud
+    assert gzip.decompress(r.read()).decode().endswith("1791500000,spin,sdd,standby\n")
+
+
+def test_spins_forgets_removed_days(sd):
+    os.makedirs(sd.DAYS)
+    open(sd.day_path("2026-10-08"), "w").write("1791410400,spin,sdd,active\n")
+    assert sd.spins_body()[0] == b"1791410400,spin,sdd,active\n"
+    os.remove(sd.day_path("2026-10-08"))
+    assert sd.spins_body()[0] == b""
+    assert sd.day_path("2026-10-08") not in sd._spin_cache

@@ -17,6 +17,7 @@
 │  web ── ThreadingHTTPServer :8089 ── /  → static/index.html                        │
 │                                      /data/days.json, /data/days/<day>.csv         │
 │                                      /data/stream  (SSE: elke who-regel live)      │
+│                                      /data/spins.csv (spin-regels van alle dagen)  │
 │                                      /data/settings.json (GET/POST: instellingen)  │
 └────────────────────────────────────────────────────────────────────────────────────┘
           ▲ /mnt (ro,slave)   ▲ /var/local/emhttp (ro)   ▲ docker.sock (ro)   ▼ /data (rw)
@@ -65,6 +66,11 @@ is done.
 Texts come from `I18N` (en, nl, fr, de, es) via `t()`; dates via `Intl` in the locale of the chosen
 language. The `(al gestopt)` suffix in who lines is translated when shown; the data format itself
 stays unchanged.
+
+At the top, *Key figures* show spin-ups, spinning hours, the share of time all drives slept and the
+longest full rest, each compared with the previous period of the same length. *Spin-ups per day* shows
+the trend over all days with the selected period highlighted. Both use `/data/spins.csv`: only the
+spin lines of every day, so the comparison needs no extra day files.
 
 Below the spin-up analysis, two *Active drives* cards (reading and writing) show per drive the top
 sources and files in that direction over the period (also without spin-ups), and a *Live activity* feed lists the most recent file
