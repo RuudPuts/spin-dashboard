@@ -2,6 +2,10 @@
 
 Newest first.
 
+## 2026-10-18: release checks
+- Tested on an array-less setup with a Btrfs HDD pool (Unraid 7.3.3, pool `trunk` with four HDDs, NVMe pool `frunk` for appdata): the image runs, watches `/mnt/trunk` and logs spin state, file access and container events
+- Documented in `docs/publishing.md` why the image is amd64 only
+
 ## 2026-10-18: validated on a real server (Unraid 7.3.3)
 - `ctr` lines arrive from Docker's event stream (start, die with exit code 137, healthy); `shares.ini` uses `useCache`/`cachePool`/`cachePool2` as expected
 - Fixed: containers that use named Compose volumes binding a folder (`o=bind`, `device=/mnt/...`) were missing from Paths per container; such a volume now counts as its folder

@@ -6,6 +6,10 @@ On every push to `main` (`latest`) and on tags `v*` (`1.2.3`), CI builds an imag
 `ghcr.io/<owner>/spin-dashboard`. After the first build: *GitHub → Packages → spin-dashboard →
 Package settings → Change visibility → Public*, otherwise Unraid cannot pull the image.
 
+The image is built for `linux/amd64` only. Unraid runs on x86-64, so a multi-arch image (arm64)
+would only add build time; `fatrace` and the host paths are the same either way. Add
+`linux/arm64` to `platforms` in `.github/workflows/ci.yml` if that ever changes.
+
 Release:
 
 ```bash
