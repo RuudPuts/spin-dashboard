@@ -2,6 +2,9 @@
 
 Newest first.
 
+## 2026-10-18: faster shfs lookups
+- `via_user_share` reads all `/proc/*/fd` links once per second into a map by file name instead of once per `shfs` event; a snapshot is only reused for events from before it was taken
+
 ## 2026-10-18: health endpoint
 - `/health` reports the poller (seconds since the last successful poll, last error), the watched mounts and running `fatrace` processes, the Docker event stream and the background threads; `503` only when the poller is stuck or a thread stopped
 - The Docker `HEALTHCHECK` uses `/health` instead of fetching the whole page (which also caused the "connection reset" tracebacks seen on a real server)

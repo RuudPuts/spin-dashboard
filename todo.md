@@ -21,4 +21,3 @@ Open work, roughly by priority. Move finished items to `completed.md`.
 ## Design (from the 2026-10-16 audit, medium priority)
 
 ## Technical
-- [ ] Make `via_user_share` faster with many processes (cache fd scans per second)

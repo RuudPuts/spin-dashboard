@@ -18,6 +18,10 @@ Access via `/mnt/user` arrives on the pool as `shfs`. The FUSE mount itself cann
 with fanotify (fatrace skips `shfs`). Solution: shortly after the event, look up which process has
 the file open via `/mnt/user`, based on the inode. This works for files that stay open for a
 moment; short accesses and folder listings remain `shfs`. Exclusive shares bypass shfs.
+A library scan through `/mnt/user` produces thousands of these events per second, and each lookup
+used to read every `/proc/*/fd` link again. `fd_snapshot()` now reads them once into a map by file
+name and reuses it for up to a second, but only for events that happened before the snapshot was
+taken, so a file opened a moment ago is never missed.
 
 ## cgroup namespace
 Docker gives containers their own cgroup namespace by default. Other containers then show up as

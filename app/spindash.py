@@ -530,7 +530,40 @@ def classify_now(pid, comm):
     return "unraid", comm
 
 
-def via_user_share(path):
+FD_SNAP_TTL = 1.0                      # een momentopname van alle open bestanden gaat zo lang mee (s)
+_fd_snap = {"t": 0.0, "by_name": {}}
+_fd_lock = threading.Lock()
+
+
+def fd_snapshot(since):
+    """{bestandsnaam: [(pid, /proc/pid/fd/n)]} van alle open bestanden. Een scan van duizenden
+    bestanden via /mnt/user geeft duizenden shfs-events per seconde; zonder momentopname las elk
+    event opnieuw heel /proc/*/fd. Hergebruik alleen als de opname ná `since` (het event) gemaakt is,
+    zodat een net geopend bestand er altijd in staat, en hooguit FD_SNAP_TTL seconden oud."""
+    with _fd_lock:
+        now = time.time()
+        if _fd_snap["t"] >= since and now - _fd_snap["t"] < FD_SNAP_TTL:
+            return _fd_snap["by_name"]
+        by = {}
+        for pid in os.listdir(PROC):
+            if not pid.isdigit():
+                continue
+            fddir = f"{PROC}/{pid}/fd"
+            try:
+                fds = os.listdir(fddir)
+            except OSError:
+                continue
+            for fd in fds:
+                try:
+                    link = os.readlink(f"{fddir}/{fd}")
+                except OSError:
+                    continue
+                by.setdefault(link.rsplit("/", 1)[-1], []).append((pid, f"{fddir}/{fd}"))
+        _fd_snap.update(t=now, by_name=by)
+        return by
+
+
+def via_user_share(path, since=None):
     """Wie heeft /mnt/pool/Share/x via /mnt/user/Share/x open? Vergelijkt inodes."""
     parts = path.split("/")
     if len(parts) < 5:
@@ -539,29 +572,19 @@ def via_user_share(path):
         want = os.stat(f"{USER_SHARES}/" + "/".join(parts[3:]))
     except OSError:
         return None
-    key, tail = (want.st_dev, want.st_ino), "/" + parts[-1]
-    for pid in os.listdir(PROC):
-        if not pid.isdigit():
-            continue
-        fddir = f"{PROC}/{pid}/fd"
+    key = (want.st_dev, want.st_ino)
+    for pid, fdpath in fd_snapshot(time.time() if since is None else since).get(parts[-1], []):
         try:
-            fds = os.listdir(fddir)
+            st = os.stat(fdpath)
         except OSError:
             continue
-        for fd in fds:
+        if (st.st_dev, st.st_ino) == key:
             try:
-                if not os.readlink(f"{fddir}/{fd}").endswith(tail):
-                    continue
-                st = os.stat(f"{fddir}/{fd}")
-            except OSError:
+                comm, _ = proc_comm_ppid(pid)
+            except (OSError, ValueError, IndexError):
                 continue
-            if (st.st_dev, st.st_ino) == key:
-                try:
-                    comm, _ = proc_comm_ppid(pid)
-                except (OSError, ValueError, IndexError):
-                    continue
-                if comm != "shfs":
-                    return pid, comm
+            if comm != "shfs":
+                return pid, comm
     return None
 
 
@@ -621,9 +644,10 @@ def broadcast(line):
 
 
 def resolve_shfs_later(ts, pid, op, path):
+    since = time.time()                      # het bestand is uiterlijk nu geopend
     def run():
         time.sleep(SHFS_DELAY)
-        hit = via_user_share(path)
+        hit = via_user_share(path, since)
         if hit:
             src = classify(*hit)
             if src:

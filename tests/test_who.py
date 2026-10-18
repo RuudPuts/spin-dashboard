@@ -272,3 +272,30 @@ def test_ignore_active_is_cached_and_reads_command_lines(sd):
     (p / "cmdline").write_bytes(b"/bin/bash\0/usr/local/emhttp/plugins/dynamix.cache.dirs/scripts/cache_dirs\0")
     assert sd.ignore_active(now=1010) is False                  # nog binnen IGNORE_SCAN: onthouden
     assert sd.ignore_active(now=1031) is True
+
+
+def test_via_user_share_reuses_one_fd_scan_within_a_second(sd, monkeypatch):
+    """Een scan via /mnt/user geeft duizenden shfs-events; /proc/*/fd wordt maar eens per seconde gelezen."""
+    t = sd._tmp
+    for name in ("a.mkv", "b.mkv"):
+        f = t / "user" / "Media" / name
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("x")
+    p = make_proc(t, 300, "Plex Media Serv")
+    (p / "fd" / "5").symlink_to(t / "user" / "Media" / "a.mkv")
+    scans = []
+    real = sd.os.listdir
+    monkeypatch.setattr(sd.os, "listdir", lambda d: (scans.append(d) if d == sd.PROC else None) or real(d))
+    clock = [1000.0]
+    monkeypatch.setattr(sd.time, "time", lambda: clock[0])
+    assert sd.via_user_share("/mnt/trunk/Media/a.mkv", since=1000.0) == ("300", "Plex Media Serv")
+    clock[0] = 1000.5
+    assert sd.via_user_share("/mnt/trunk/Media/a.mkv", since=999.9) == ("300", "Plex Media Serv")
+    assert len(scans) == 1                                   # tweede keer uit de momentopname
+    # een bestand dat ná de opname geopend werd: de opname is te oud voor dit event en wordt vernieuwd
+    (p / "fd" / "6").symlink_to(t / "user" / "Media" / "b.mkv")
+    assert sd.via_user_share("/mnt/trunk/Media/b.mkv", since=1000.4) == ("300", "Plex Media Serv")
+    assert len(scans) == 2
+    clock[0] = 1002.0                                        # ouder dan een seconde: opnieuw
+    sd.via_user_share("/mnt/trunk/Media/a.mkv", since=990.0)
+    assert len(scans) == 3
