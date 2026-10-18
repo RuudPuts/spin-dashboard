@@ -11,6 +11,9 @@
 │                                         container_name(): docker.sock              │
 │                                         shfs → via_user_share(): /proc/*/fd       │
 │                                                                                    │
+│  docker ── /events (start, die, health) ──► days/<day>.csv  (ctr)                  │
+│     └── /containers/json + /emhttp/shares.ini ──► /data/containers.json            │
+│                                                                                    │
 │  housekeeping ── prune_days() every 6 hours; migrate() and relabel_existing()      │
 │                  on start                                                          │
 │                                                                                    │
@@ -18,6 +21,7 @@
 │                                      /data/days.json, /data/days/<day>.csv         │
 │                                      /data/stream  (SSE: elke who-regel live)      │
 │                                      /data/spins.csv (spin-regels van alle dagen)  │
+│                                      /data/containers.json (mounts per container)  │
 │                                      /data/settings.json (GET/POST: instellingen)  │
 └────────────────────────────────────────────────────────────────────────────────────┘
           ▲ /mnt (ro,slave)   ▲ /var/local/emhttp (ro)   ▲ docker.sock (ro)   ▼ /data (rw)
@@ -77,6 +81,13 @@ the spin-down; *Rhythm per source* recognises fixed intervals and daily times. C
 profile. *Spin time and rest per drive* shows per lane the median run after a spin-up, the longest
 rest and how often a drive woke up within 30 minutes of going to standby. Both use `/data/spins.csv`: only the
 spin lines of every day, so the comparison needs no extra day files.
+
+*Paths per container* in Settings comes from `/data/containers.json`: the bind mounts of every
+container (Docker API) and, for `/mnt/user/<share>`, where the share lives according to Unraid's
+`shares.ini`. Whether a path is on an HDD follows from those settings and which disks and pools are
+rotational, never from looking at the disks (that would wake them). The `docker` thread also
+follows Docker's event stream and writes `ctr` lines for start, die and health; container processes
+get a `proc` line with their fatrace name, so the feed and the profile can say "plex › Plex Media Scan".
 
 Below the spin-up analysis, *Reads per drive* and *Writes per drive* show per drive the top
 sources and files in that direction over the period (also without spin-ups), and a *Live activity* feed lists the most recent file

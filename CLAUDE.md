@@ -49,7 +49,9 @@ then builds the image.
    write a migration in the same change that brings existing installations' data to the new form.
    Like `migrate()` it runs on start, is safe to run again, never loses data (originals go to
    `DATA_DIR/legacy`), logs what it did, and has a pytest with data in the old form. Describe it
-   under "Migration" in `docs/data-formats.md`.
+   under "Migration" in `docs/data-formats.md`. A purely additive change (a new line type or file
+   that old data simply lacks) needs no conversion, but still gets an entry under "Migration"
+   saying so and why, and a test that data in the old form still loads.
 
 ## Conventions
 

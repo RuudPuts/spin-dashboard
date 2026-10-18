@@ -31,7 +31,7 @@ Tip: keep the appdata path on an SSD/cache pool, otherwise the dashboard itself 
 
   <Config Name="Unraid disk info (read-only)" Target="/emhttp" Default="/var/local/emhttp" Mode="ro" Description="Unraid's disk state (disks.ini), used for names like parity, disk1 and pool members." Type="Path" Display="advanced" Required="true" Mask="false">/var/local/emhttp</Config>
 
-  <Config Name="Docker socket (read-only)" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="ro" Description="Only used to look up container names for the processes that open files." Type="Path" Display="advanced" Required="false" Mask="false">/var/run/docker.sock</Config>
+  <Config Name="Docker socket (read-only)" Target="/var/run/docker.sock" Default="/var/run/docker.sock" Mode="ro" Description="Read-only use of the Docker API: container names for the processes that open files, container start/stop events, and the paths each container maps (shown in Settings)." Type="Path" Display="advanced" Required="false" Mask="false">/var/run/docker.sock</Config>
 
   <Config Name="Poll interval" Target="POLL_INTERVAL" Default="60" Mode="" Description="Seconds between drive state checks." Type="Variable" Display="advanced" Required="false" Mask="false">60</Config>
 

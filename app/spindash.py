@@ -8,10 +8,12 @@ Eén proces met drie onderdelen:
            De namen (parity, disk1, pool, pool2) komen uit Unraid's disks.ini.
   watcher  draait per HDD-mount een `fatrace -c` (fanotify) en legt vast welk proces
            welk bestand opent: een container, Unraid zelf of een gebruiker (SMB/shell).
+  docker   volgt start/stop/health van containers (ctr-regels) en levert per container de mounts
+           met waar de share staat (shares.ini) voor /data/containers.json.
   web      serveert het dashboard en de CSV's, en bewaart de instellingen (verborgen paden).
 
 Alles staat in DATA_DIR/days: één CSV per dag (YYYY-MM-DD.csv, lokale datum) met regels
-`epoch,soort,...` (disk, state, spin, who, activity). Oudere losse bestanden (spin.csv, disks.csv,
+`epoch,soort,...` (disk, state, spin, proc, who, activity, ctr). Oudere losse bestanden (spin.csv, disks.csv,
 who.csv, activity.csv) worden bij het starten eenmalig naar dagbestanden gemigreerd.
 """
 import gzip
@@ -27,6 +29,7 @@ import socket
 import subprocess
 import threading
 import time
+import urllib.parse
 from datetime import datetime
 from functools import partial
 
@@ -65,7 +68,7 @@ SETTINGS = os.path.join(DATA, "spindash-settings.json")
 OWN_FILES = {"spin.csv", "disks.csv", "who.csv", "activity.csv",
              "spindash-settings.json", "spindash-settings.json.tmp"}
 DAY_FILE = re.compile(r"^\d{4}-\d{2}-\d{2}\.csv(?:\.tmp)?$")
-TYPES = ("disk", "state", "spin", "who", "activity")     # volgorde binnen dezelfde seconde
+TYPES = ("disk", "state", "spin", "proc", "who", "activity", "ctr")   # volgorde binnen dezelfde seconde
 
 write_lock = threading.Lock()
 # live-verbindingen (Server-Sent Events): elke write_who zet de regel in alle wachtende queues
@@ -431,21 +434,33 @@ def container_id(pid):
     return m.group(1) if m else None
 
 
+def docker_conn(timeout):
+    """HTTP over de Docker-socket. timeout None: blijven wachten (de events-stroom)."""
+    c = http.client.HTTPConnection("localhost", timeout=timeout)
+    c.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    c.sock.settimeout(timeout)
+    c.sock.connect(DOCKER_SOCK)
+    return c
+
+
+def docker_get(path, timeout=2):
+    """JSON van een GET op de Docker-API, of None (geen socket, fout, andere status)."""
+    try:
+        c = docker_conn(timeout)
+        c.request("GET", path)
+        r = c.getresponse()
+        body = r.read()
+        c.close()
+        return json.loads(body) if r.status == 200 else None
+    except Exception:
+        return None
+
+
 def container_name(cid):
     if cid in names:
         return names[cid]
-    name = cid[:12]
-    try:
-        c = http.client.HTTPConnection("localhost", timeout=2)
-        c.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        c.sock.settimeout(2)
-        c.sock.connect(DOCKER_SOCK)
-        c.request("GET", f"/containers/{cid}/json")
-        r = c.getresponse()
-        if r.status == 200:
-            name = json.loads(r.read()).get("Name", "").lstrip("/") or name
-    except Exception:
-        pass
+    info = docker_get(f"/containers/{cid}/json")
+    name = (info or {}).get("Name", "").lstrip("/") or cid[:12]
     names[cid] = name
     return name
 
@@ -549,7 +564,23 @@ def share_root(path):
     return "/".join(parts[:4]) + "/" if len(parts) > 4 else path
 
 
-def write_who(ts, kind, name, pid, op, path, now=None):
+procs_seen = {}       # pid -> (comm, dag) van de laatste proc-regel
+
+
+def proc_line(ts, pid, comm):
+    """`proc`-regel als deze PID vandaag nog niet met deze procesnaam gelogd is, anders None.
+    Zo weet de frontend welk proces binnen een container (Plex Media Scanner, Plex Transcoder)
+    een bestand opende, zonder de who-regel te veranderen."""
+    day = day_of(ts)
+    if procs_seen.get(pid) == (comm, day):
+        return None
+    if len(procs_seen) > 50_000:
+        procs_seen.clear()
+    procs_seen[pid] = (comm, day)
+    return f"{ts},proc,{pid},{comm.replace(',', ' ')}"
+
+
+def write_who(ts, kind, name, pid, op, path, now=None, comm=None):
     if kind == "gebruiker" and name in ("SMB-share", "NFS-share"):
         path = share_root(path)              # één regel per share
     now = time.time() if now is None else now
@@ -563,8 +594,11 @@ def write_who(ts, kind, name, pid, op, path, now=None):
             for kk in [kk for kk, t in recent.items() if now - t > DEDUP_S]:
                 del recent[kk]
     line = f"{ts},who,{kind},{name.replace(',', ' ')},{pid},{op},{path}"
-    append_lines([line])
+    proc = proc_line(ts, pid, comm) if kind == "container" and comm else None
+    append_lines([proc, line] if proc else [line])
     stats["written"] += 1
+    if proc:
+        broadcast(proc)                      # vóór de who-regel, zodat de live-feed de naam al kent
     broadcast(line)
 
 
@@ -586,7 +620,7 @@ def resolve_shfs_later(ts, pid, op, path):
         if hit:
             src = classify(*hit)
             if src:
-                write_who(ts, *src, hit[0], op, path)
+                write_who(ts, *src, hit[0], op, path, comm=hit[1])
         else:
             write_who(ts, "unraid", "shfs (via /mnt/user)", pid, op, path)
     threading.Thread(target=run, daemon=True).start()
@@ -621,7 +655,7 @@ def handle(line):
     if src and src[0] == "onbekend" and op == "geopend" and path.endswith("/") and ignore_active():
         return
     if src:
-        write_who(ts, *src, pid, op, path)
+        write_who(ts, *src, pid, op, path, comm=comm)
 
 
 def consumer():
@@ -687,6 +721,138 @@ def watcher():
             log(f"active: {len(procs)} fatrace, {stats['written']} lines, "
                 f"queue {events.qsize()}, dropped {stats['dropped']}")
         time.sleep(60)
+
+
+# =====================================================================================
+# Docker: levenscyclus (ctr-regels) en mounts per container
+# =====================================================================================
+CTR_ACTIONS = {"start": "start", "die": "die",
+               "health_status: healthy": "healthy", "health_status: unhealthy": "unhealthy"}
+
+
+def ctr_line(ev, now=None):
+    """`ctr`-regel voor een Docker-event (start, die met exitcode, healthy, unhealthy), anders None."""
+    if ev.get("Type") != "container":
+        return None
+    act = CTR_ACTIONS.get(ev.get("Action") or ev.get("status") or "")
+    attrs = (ev.get("Actor") or {}).get("Attributes") or {}
+    name = (attrs.get("name") or "").replace(",", " ")
+    if not act or not name:
+        return None
+    ts = int(ev.get("time") or (time.time() if now is None else now))
+    line = f"{ts},ctr,{name},{act}"
+    code = str(attrs.get("exitCode", ""))
+    if act == "die" and code.lstrip("-").isdigit():
+        line += f",{code}"
+    return line
+
+
+def docker_events_once():
+    """Eén verbinding met de events-stroom; keert terug als Docker de verbinding sluit."""
+    flt = urllib.parse.quote(json.dumps({"type": ["container"]}))
+    c = docker_conn(None)
+    c.request("GET", f"/events?filters={flt}")
+    r = c.getresponse()
+    if r.status != 200:
+        raise OSError(f"docker events: HTTP {r.status}")
+    while True:
+        raw = r.readline()
+        if not raw:
+            return
+        try:
+            line = ctr_line(json.loads(raw))
+        except ValueError:
+            continue
+        if line:
+            append_lines([line])
+
+
+def docker_events():
+    if not os.path.exists(DOCKER_SOCK):
+        log(f"No Docker socket at {DOCKER_SOCK}: container start/stop is not logged")
+        return
+    while True:
+        try:
+            docker_events_once()
+        except Exception as e:
+            log("docker events:", repr(e))
+        time.sleep(30)
+
+
+def read_shares_ini():
+    """{share: {sleutel: waarde}} uit Unraid's shares.ini (tmpfs onder /emhttp, wekt niets)."""
+    out, cur = {}, None
+    try:
+        for line in open(os.path.join(EMHTTP, "shares.ini")):
+            line = line.strip()
+            if line.startswith("["):
+                cur = out.setdefault(line.strip('[]"'), {})
+            elif "=" in line and cur is not None:
+                k, v = line.split("=", 1)
+                cur[k.strip()] = v.strip().strip('"')
+    except OSError:
+        pass
+    return out
+
+
+def share_storage(sh):
+    """(opslag, pool) volgens de share-instellingen. Opslag: pool (alleen pool), array (alleen array),
+    pool>array (eerst pool, de mover zet het naar de array), array>pool (de mover haalt het naar de
+    pool) of unknown. De veldnamen verschillen per Unraid-versie; onbekend is unknown."""
+    use = (sh.get("useCache") or sh.get("shareUseCache") or "").lower()
+    pool = sh.get("cachePool") or sh.get("shareCachePool") or "cache"
+    return {"only": "pool", "no": "array", "yes": "pool>array", "prefer": "array>pool"}.get(use, "unknown"), pool
+
+
+def locate(src, shares, hdd_bases):
+    """Waar een host-pad onder /mnt staat: een share (met opslag), een arrayschijf of een pool,
+    en of dat (mogelijk) een HDD is. Alleen instellingen en namen: geen stat op de schijf (regel 1)."""
+    p = [x for x in src.split("/") if x]
+    if len(p) < 2 or p[0] != "mnt":
+        return None
+    array_hdd = any(re.fullmatch(r"disk\d+", b) for b in hdd_bases)
+    top = p[1]
+    if top in ("user", "user0"):
+        if len(p) < 3:
+            return {"kind": "user", "hdd": array_hdd or bool(hdd_bases)}
+        st, pool = share_storage(shares.get(p[2], {}))
+        if top == "user0":
+            st = "array"
+        hdd = {"pool": pool in hdd_bases, "array": array_hdd, "pool>array": array_hdd,
+               "array>pool": pool in hdd_bases}.get(st)
+        return {"kind": "share", "share": p[2], "storage": st, "pool": pool, "hdd": hdd}
+    kind = "disk" if re.fullmatch(r"disk\d+", top) else "pool"
+    return {"kind": kind, "name": top, "hdd": top in hdd_bases}
+
+
+_containers_cache = {"t": 0.0, "body": None}
+
+
+def containers_info(now=None):
+    """Inhoud van /data/containers.json: per container de mounts onder /mnt en waar die staan.
+    Hooguit eens per 30 s opnieuw opgevraagd; zonder Docker-socket een lege lijst."""
+    now = time.time() if now is None else now
+    if _containers_cache["body"] is not None and now - _containers_cache["t"] < 30:
+        return _containers_cache["body"]
+    shares = read_shares_ini()
+    hdd_bases = {b for b in map(mount_base, hdd_devices().values()) if b}
+    out = []
+    for c in docker_get("/containers/json?all=1") or []:
+        name = ((c.get("Names") or [""])[0]).lstrip("/")
+        if not name:
+            continue
+        mounts = []
+        for m in c.get("Mounts") or []:
+            where = locate(m.get("Source") or "", shares, hdd_bases)
+            if where:
+                mounts.append({"source": m.get("Source"), "target": m.get("Destination"),
+                               "rw": bool(m.get("RW", True)), "where": where})
+        out.append({"name": name, "state": c.get("State") or "",
+                    "project": (c.get("Labels") or {}).get("com.docker.compose.project") or "",
+                    "mounts": mounts})
+    body = {"docker": os.path.exists(DOCKER_SOCK), "containers": sorted(out, key=lambda x: x["name"].lower())}
+    _containers_cache.update(t=now, body=body)
+    return body
 
 
 # =====================================================================================
@@ -909,8 +1075,8 @@ def save_settings(new):
 # =====================================================================================
 class Handler(http.server.SimpleHTTPRequestHandler):
     """/ → dashboard, /data/days.json → lijst van dagen, /data/days/YYYY-MM-DD.csv → dagbestand,
-    /data/spins.csv → alleen de spin-regels van alle dagen, /data/settings.json → instellingen
-    (GET lezen, POST opslaan)."""
+    /data/spins.csv → alleen de spin-regels van alle dagen, /data/containers.json → mounts per
+    container, /data/settings.json → instellingen (GET lezen, POST opslaan)."""
     def do_GET(self):
         clean = self.path.split("?", 1)[0]
         if clean == "/data/days.json":
@@ -921,6 +1087,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return
         if clean == "/data/spins.csv":
             self.send_spins()
+            return
+        if clean == "/data/containers.json":
+            self.send_json(containers_info())
             return
         if clean == "/data/stream":
             self.stream_events()
@@ -1093,7 +1262,7 @@ def main():
         f"keeping {RETENTION_DAYS} days, fatrace: {fatrace_version()})")
     relabel_existing()
     threading.excepthook = lambda a: log("thread error:", repr(a.exc_value))
-    for target in (poller, watcher, housekeeping):
+    for target in (poller, watcher, housekeeping, docker_events):
         threading.Thread(target=target, daemon=True).start()
     web()
 

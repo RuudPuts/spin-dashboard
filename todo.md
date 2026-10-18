@@ -6,6 +6,7 @@ Open work, roughly by priority. Move finished items to `completed.md`.
 - [ ] Build and test the image on an array-less setup with a Btrfs pool
 - [ ] Test on a system with a classic array and parity (`/mnt/diskN`, `/dev/mdXpY`)
 - [ ] Test with a ZFS pool with a dataset per share
+- [ ] Verify the `shares.ini` field names (`useCache`, `cachePool`, and Unraid 7's secondary storage) on Unraid 6.12 and 7; Settings › Paths per container shows "unknown" when they do not match
 - [ ] Fill in the support link (`<Support>` in the template) once the forum thread exists
 - [ ] Support thread on the Unraid forum and submission to Community Applications
 
@@ -14,6 +15,8 @@ Open work, roughly by priority. Move finished items to `completed.md`.
 - [ ] Optional: notifications (Unraid notification or webhook) for spin-ups outside a configured window
 - [ ] Optional: set an "expected night window" per pool and highlight deviations
 - [ ] Export a period as CSV from the UI
+- [ ] Group containers by Docker Compose project (`project` is already in `/data/containers.json`)
+- [ ] Bytes per container: only possible for direct `/mnt/diskN` or pool mappings, see `docs/decisions.md`
 
 ## Design (from the 2026-10-16 audit, medium priority)
 - [ ] Use one word for the hardware: the UI mixes "drive" and "disk" (headings say drives, the table and filter say disk)

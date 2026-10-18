@@ -2,6 +2,19 @@
 
 Newest first.
 
+## 2026-10-18: card size and position in Settings
+- Every card can be small (half width) or large in Settings › Cards; the choice is saved with the layout (`size` in `spindash.cards`, older layouts keep the default sizes) and reset by "Restore default layout"
+- Each card shows where it lands on a wide screen with a small icon (whole width, left, right); two small cards side by side are connected in the list, and clicking the icon swaps them, also across a hidden card in between
+- Screen readers hear the position with the card name; changes are announced
+- Settings › Paths per container moved below Cards and shows only the host path with an HDD label
+
+## 2026-10-18: Docker: storage, lifecycle and processes
+- Settings › Paths per container (below Cards): the host paths under `/mnt` each container maps (Docker API), with an HDD label when the folder can be on a hard drive according to `shares.ini` (pool, array, mover direction). New endpoint `/data/containers.json`. (First built as a card with advice; that added too little and moved to Settings as a plain list.)
+- Container lifecycle: a `docker` thread follows Docker's event stream and writes `ctr` lines (start, die with exit code, healthy, unhealthy). A die + start within a minute shows as a restart. Marked on the source timeline, listed in the profile, and named next to the cause of a spin-up that follows within 5 minutes
+- Process inside a container: a `proc` line with the fatrace process name per PID, so the feed and the profile show e.g. "plex › Plex Media Scan"
+- No conversion needed for existing data (purely additive), recorded under "Migrations by change" in `docs/data-formats.md`; CLAUDE.md rule 7 now spells out how additive changes are handled
+- Bytes per container deliberately not built (FUSE/shfs, cgroup namespace); see `docs/decisions.md`
+
 ## 2026-10-18: consistent card titles
 - Every card title follows one pattern, "<subject> per <dimension>", and uses "drive" for the hardware: Timeline per drive, Spin-ups per hour of day, Spin-up causes per folder, Kept awake per source, Activity per source, Rhythm per source, Reads per drive, Writes per drive, Spin time and rest per drive (and the same in nl, fr, de, es)
 - A test checks the pattern in every language; README screenshots refreshed

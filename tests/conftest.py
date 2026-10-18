@@ -22,6 +22,9 @@ def sd(tmp_path, monkeypatch):
     monkeypatch.setattr(spindash, "DAYS", str(data / "days"))
     monkeypatch.setattr(spindash, "LEGACY", str(data / "legacy"))
     monkeypatch.setattr(spindash, "SETTINGS", str(data / "spindash-settings.json"))
+    monkeypatch.setattr(spindash, "DOCKER_SOCK", str(tmp_path / "no-docker.sock"))
+    monkeypatch.setattr(spindash, "procs_seen", {})
+    monkeypatch.setattr(spindash, "_containers_cache", {"t": 0.0, "body": None})
     monkeypatch.setenv("TZ", "Europe/Amsterdam")      # dagen en dagstart vast voor de tests
     time.tzset()
     monkeypatch.setattr(spindash, "EMHTTP", str(tmp_path / "emhttp"))
@@ -58,3 +61,55 @@ def make_proc(tmp_path, pid, comm, ppid=1, cgroup="0::/\n"):
     (d / "cgroup").write_text(cgroup)
     (d / "fd").mkdir()
     return d
+
+
+class FakeDocker:
+    """Docker-API op een Unix-socket: routes {pad: JSON} of {pad: (regels, ...)} (een tuple) voor
+    een chunked stroom zoals /events, die daarna sluit."""
+    def __init__(self, routes):
+        import socketserver, http.server, tempfile, json, threading
+        self.dir = tempfile.mkdtemp(dir="/tmp")         # korte padnaam: Unix-sockets hebben een lengtelimiet
+        self.path = os.path.join(self.dir, "d.sock")
+        self.requests = []
+        outer = self
+
+        class H(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+            def address_string(self):
+                return "docker"
+            def log_message(self, *a):
+                pass
+            def do_GET(self):
+                outer.requests.append(self.path)
+                key = next((k for k in routes if self.path.split("?")[0] == k), None)
+                if key is None:
+                    self.send_response(404); self.send_header("Content-Length", "0"); self.end_headers(); return
+                val = routes[key]
+                if isinstance(val, tuple):
+                    self.send_response(200)
+                    self.send_header("Transfer-Encoding", "chunked")
+                    self.send_header("Connection", "close")
+                    self.end_headers()
+                    for line in val:
+                        data = (line + "\n").encode()
+                        self.wfile.write(b"%x\r\n%s\r\n" % (len(data), data))
+                    self.wfile.write(b"0\r\n\r\n")
+                    self.close_connection = True
+                    return
+                body = json.dumps(val).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        class S(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
+            daemon_threads = True
+        self.server = S(self.path, H)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def close(self):
+        import shutil
+        self.server.shutdown()
+        self.server.server_close()
+        shutil.rmtree(self.dir, ignore_errors=True)

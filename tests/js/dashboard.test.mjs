@@ -42,6 +42,8 @@ function load(files, url = 'http://dash/?lang=nl', languages = ['en-US'], stored
   return new Promise((resolve) => setTimeout(() => resolve(dom), 300));
 }
 const text = (el) => el.textContent.replace(/\s+/g, ' ').trim();
+// naam van een kaartje in de instellingen, zonder de positie die alleen voor schermlezers is
+const cardName = (label) => [...label.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim();
 const rows = (doc) => [...doc.querySelectorAll('#events tr')].map(text);
 
 const POOL = served({ [today]: [
@@ -645,7 +647,7 @@ test('the settings button opens a dialog with the language choice and the card l
   gear.click();
   assert.ok(d.getElementById('settings').hasAttribute('open'));
   assert.equal(gear.getAttribute('aria-expanded'), 'true');
-  const names = [...d.querySelectorAll('#cardList li label')].map(text);
+  const names = [...d.querySelectorAll('#cardList li label')].map(cardName);
   assert.deepEqual(names, ['Kerncijfers', 'Tijdlijn per schijf', 'Tijdlijn per bron', 'Spin-ups per dag', 'Spin-ups per uur van de dag',
     'Oorzaken van spin-ups per map', 'Wakker gehouden per bron', 'Activiteit per bron', 'Ritme per bron',
     'Lezen per schijf', 'Schrijven per schijf', 'Draaitijd en rust per schijf', 'Live activiteit', 'Gebeurtenissen']);
@@ -717,7 +719,7 @@ test('changing the language in settings also translates the card list', async ()
   d.getElementById('openSettings').click();
   const sel = d.getElementById('lang');
   sel.value = 'de'; sel.dispatchEvent(new w.Event('change'));
-  assert.equal(text(d.querySelector('#cardList li label')), 'Kennzahlen');
+  assert.equal(cardName(d.querySelector('#cardList li label')), 'Kennzahlen');
   assert.equal(d.getElementById('openSettings').getAttribute('aria-label'), 'Einstellungen');
   dom.window.close();
 });
@@ -1169,4 +1171,179 @@ test('every card title follows one pattern: a subject, optionally "per" a dimens
     assert.ok(titles.filter((x) => x.includes(per)).length >= 10, `${lang}: ${titles.join(' | ')}`);
     dom.window.close();
   }
+});
+
+// ---------- docker: proces in de container, start/stop, opslag ----------
+const DOCK = served({ [today]: [
+  `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,standby`,
+  `${ep(130)},ctr,radarr,die,0`, `${ep(129.7)},ctr,radarr,start`,          // herstart, 9 min vóór de spin-up
+  `${ep(121)},proc,7,Plex Media Scan`,
+  `${ep(121)},who,container,plex,7,geopend,/mnt/trunk/Media/films/b.mkv`,
+  `${ep(120)},spin,sdd,active`,
+  `${ep(119)},ctr,plex,start`,                                           // vlak vóór de tweede spin-up
+  `${ep(110)},who,container,sonarr,8,geschreven,/mnt/trunk/appdata/sonarr/sonarr.db`,
+  `${ep(100)},spin,sdd,standby`, `${ep(96)},spin,sdd,active`,
+  `${ep(95)},who,container,plex,9,geopend,/mnt/trunk/Media/films/c.mkv`,  // geen proc-regel: alleen de naam
+  `${ep(60)},spin,sdd,standby`,
+] });
+
+test('the process inside a container shows in the feed and the profile', async () => {
+  const dom = await load(DOCK);
+  const d = dom.window.document;
+  const items = [...d.querySelectorAll('#feed li')].map(text);
+  assert.match(items.find((x) => /b\.mkv/.test(x)), /plex › Plex Media Scan/);
+  assert.doesNotMatch(items.find((x) => /c\.mkv/.test(x)), /›/);           // oude regels zonder proc: gewoon de container
+  d.querySelector('#sources .srcbtn[data-src="container|plex"]').click();
+  assert.match(text(d.getElementById('profileBody')), /Processen\s*Plex Media Scan 1/);
+  dom.window.close();
+});
+
+test('a streamed proc line names the process of the who line after it', async () => {
+  const dom = await loadWithStream(DOCK);
+  const w = dom.window, n = Math.floor(Date.now() / 1000);
+  w.__push(`${n},proc,77,Plex Transcoder`);
+  w.__push(`${n},who,container,plex,77,geopend,/mnt/trunk/Media/films/z.mkv`);
+  await new Promise((r) => setTimeout(r, 400));
+  assert.match([...w.document.querySelectorAll('#feed li')].map(text).find((x) => /z\.mkv/.test(x)), /plex › Plex Transcoder/);
+  dom.window.close();
+});
+
+test('container start and stop show on the source timeline, in the profile and before a spin-up', async () => {
+  const dom = await load(DOCK);
+  const d = dom.window.document;
+  const plex = d.querySelector('#srcLaneList .srow[data-k="container|plex"]');
+  assert.equal((plex.querySelector('.cs').getAttribute('d').match(/M/g) || []).length, 1);
+  assert.equal(plex.querySelector('.cd').getAttribute('d'), '');
+  // radarr herstartte 9 min vóór de spin-up: buiten de 5 minuten, dus niet genoemd
+  const ups = rows(d).filter((x) => /Opgespind/.test(x));
+  assert.ok(ups.every((x) => !/radarr/.test(x)), ups.join('\n'));
+  d.querySelector('#sources .srcbtn[data-src="container|plex"]').click();
+  assert.match(text(d.getElementById('profileBody')), /Start en stop\s*Start zo/);
+  dom.window.close();
+});
+
+test('a container restart just before a spin-up is named in the events table', async () => {
+  const NEAR = served({ [today]: [
+    `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,standby`,
+    `${ep(250)},who,container,plex,7,geopend,/mnt/trunk/Media/x.mkv`,     // wel activiteit, maar niet bij de spin-up
+    `${ep(123)},ctr,radarr,die,0`, `${ep(122.8)},ctr,radarr,start`,
+    `${ep(120)},spin,sdd,active`, `${ep(60)},spin,sdd,standby`,
+  ] });
+  const dom = await load(NEAR);
+  const up = rows(dom.window.document).find((x) => /Opgespind/.test(x));
+  assert.match(up, /Geen bestandsactiviteit gezien Herstart van radarr 3 min eerder/);
+  dom.window.close();
+});
+
+test('settings list the paths each container maps and where they live', async () => {
+  const containers = { docker: true, containers: [
+    { name: 'plex', state: 'running', mounts: [
+      { source: '/mnt/user/appdata/plex', target: '/config', rw: true, where: { kind: 'share', share: 'appdata', storage: 'pool>array', pool: 'cache', hdd: true } },
+      { source: '/mnt/user/Media', target: '/media', rw: false, where: { kind: 'share', share: 'Media', storage: 'unknown', pool: 'cache', hdd: null } }] },
+    { name: 'radarr', state: 'running', mounts: [
+      { source: '/mnt/disk1/appdata/radarr', target: '/config', rw: true, where: { kind: 'disk', name: 'disk1', hdd: true } }] },
+    { name: 'nginx', state: 'exited', mounts: [
+      { source: '/mnt/cache/appdata/nginx', target: '/config', rw: true, where: { kind: 'pool', name: 'cache', hdd: false } }] },
+    { name: 'empty', state: 'running', mounts: [] },
+  ] };
+  const dom = await load({ ...DOCK, 'containers.json': JSON.stringify(containers) });
+  const d = dom.window.document;
+  assert.equal(d.querySelector('[data-card="storage"]'), null);            // geen kaartje meer
+  d.getElementById('openSettings').click();
+  const li = (n) => text(d.querySelector(`#mountList li[data-ctr="${n}"]`));
+  assert.deepEqual([...d.querySelectorAll('#mountList li')].map((x) => x.dataset.ctr), ['plex', 'radarr', 'nginx']);
+  // alleen het pad, met een HDD-label als het op een harde schijf kan staan (onbekend: geen label)
+  assert.deepEqual([...d.querySelectorAll('#mountList li[data-ctr="plex"] .map')].map(text), ['/mnt/user/appdata/plex HDD', '/mnt/user/Media']);
+  assert.equal(li('radarr'), 'radarr /mnt/disk1/appdata/radarr HDD');
+  assert.equal(li('nginx'), 'nginx (gestopt) /mnt/cache/appdata/nginx');
+  // onder de kaartjes
+  const order = [...d.querySelectorAll('#settings h3')].map((h) => h.dataset.i18n);
+  assert.deepEqual(order.slice(-2), ['cardsTitle', 'mountsTitle']);
+  dom.window.close();
+});
+
+test('settings explain a missing Docker socket or a failed request', async () => {
+  let dom = await load({ ...DOCK, 'containers.json': JSON.stringify({ docker: false, containers: [] }) });
+  dom.window.document.getElementById('openSettings').click();
+  assert.match(text(dom.window.document.getElementById('mountList')), /Geen Docker-socket/);
+  dom.window.close();
+  dom = await load(DOCK);                                                  // containers.json: 404
+  dom.window.document.getElementById('openSettings').click();
+  assert.equal(text(dom.window.document.getElementById('mountList')), 'De containers konden niet gelezen worden.');
+  dom.window.close();
+});
+
+// ---------- kaartjes: maat en positie in de instellingen ----------
+const posOf = (d) => Object.fromEntries([...d.querySelectorAll('#cardList li')].map((li) => [li.dataset.card, li.dataset.pos]));
+
+test('the card list shows which cards are small or large and which sit side by side', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document;
+  d.getElementById('openSettings').click();
+  assert.deepEqual(posOf(d), { kpi: 'full', lanes: 'full', srcLanes: 'full', days: 'left', hist: 'right', causes: 'left', awake: 'right',
+    src: 'left', rhythm: 'right', actR: 'left', actW: 'right', rest: 'left', feed: 'right', events: 'full' });
+  const li = (id) => d.querySelector(`#cardList li[data-card="${id}"]`);
+  assert.ok(li('days').classList.contains('pair-l') && li('hist').classList.contains('pair-r'));
+  assert.equal(text(li('days').querySelector('.size')), 'Klein');
+  assert.equal(text(li('kpi').querySelector('.size')), 'Groot');
+  assert.equal(li('kpi').querySelector('.lay').disabled, true);               // groot: niets om mee te wisselen
+  assert.equal(li('days').querySelector('.lay').getAttribute('aria-label'), 'Spin-ups per dag: naar rechts');
+  assert.equal(li('hist').querySelector('label .sr').textContent, ', rechterhelft');
+  dom.window.close();
+});
+
+test('a card can be made small or large, and the choice is remembered and reset', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document, w = dom.window;
+  d.getElementById('openSettings').click();
+  d.querySelector('#cardList li[data-card="kpi"] .size').click();
+  assert.ok(d.querySelector('#dash > [data-card="kpi"]').hasAttribute('data-half'));
+  assert.equal(d.getElementById('cardLive').textContent, 'Kerncijfers: Klein');
+  assert.equal(posOf(d).kpi, 'alone');                                       // klein, maar de tijdlijn erna is groot
+  assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="kpi"] .size'));
+  d.querySelector('#cardList li[data-card="feed"] .size').click();            // live activiteit groot
+  assert.ok(!d.querySelector('#dash > [data-card="feed"]').hasAttribute('data-half'));
+  assert.equal(posOf(d).rest, 'alone');
+  const saved = JSON.parse(w.localStorage.getItem('spindash.cards'));
+  assert.equal(saved.find((c) => c.id === 'kpi').size, 'half');
+  dom.window.close();
+
+  const again = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w2) => w2.localStorage.setItem('spindash.cards', JSON.stringify(saved)));
+  const d2 = again.window.document;
+  assert.ok(d2.querySelector('#dash > [data-card="kpi"]').hasAttribute('data-half'));
+  assert.ok(!d2.querySelector('#dash > [data-card="feed"]').hasAttribute('data-half'));
+  d2.getElementById('openSettings').click();
+  d2.getElementById('resetCards').click();
+  assert.ok(!d2.querySelector('#dash > [data-card="kpi"]').hasAttribute('data-half'));
+  assert.ok(d2.querySelector('#dash > [data-card="feed"]').hasAttribute('data-half'));
+  again.window.close();
+});
+
+test('two cards side by side swap places with the layout button, also across a hidden card', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document, w = dom.window;
+  d.getElementById('openSettings').click();
+  d.querySelector('#cardList li[data-card="days"] .lay').click();
+  assert.deepEqual(cardOrder(d).slice(3, 5), ['hist', 'days']);
+  assert.equal(posOf(d).days, 'right');
+  assert.equal(d.getElementById('cardLive').textContent, 'Spin-ups per dag: nu rechts');
+  assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="days"] .lay'));
+  // verberg "wakker gehouden": oorzaken staat dan naast per bron, en die twee wisselen
+  const box = d.querySelector('#cardList li[data-card="awake"] input');
+  box.checked = false; box.dispatchEvent(new w.Event('change', { bubbles: true }));
+  d.querySelector('#cardList li[data-card="src"] .lay').click();
+  const ids = [...d.querySelectorAll('#cardList li')].map((li) => li.dataset.card);
+  assert.deepEqual(ids.slice(5, 8), ['src', 'awake', 'causes']);
+  assert.equal(posOf(d).src, 'left');
+  dom.window.close();
+});
+
+test('an old saved layout without sizes keeps the default sizes', async () => {
+  const stored = JSON.stringify([{ id: 'events' }, { id: 'lanes', hidden: false }, { id: 'feed', size: 'reus' }]);
+  const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.cards', stored));
+  const d = dom.window.document;
+  assert.ok(!d.querySelector('#dash > [data-card="events"]').hasAttribute('data-half'));
+  assert.ok(d.querySelector('#dash > [data-card="feed"]').hasAttribute('data-half'));    // onbekende maat: standaard
+  assert.ok(d.querySelector('#dash > [data-card="days"]').hasAttribute('data-half'));
+  dom.window.close();
 });
