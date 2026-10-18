@@ -44,6 +44,12 @@ then builds the image.
 5. **Data formats are a contract** between backend and frontend and with existing installations.
    Only change them in a backward-compatible way; see `docs/data-formats.md`.
 6. **Host paths via module constants** (`PROC`, `SYS_BLOCK`, `MOUNTS_FILE`, …) so tests can replace them.
+7. **Every change to the stored data comes with a migration.** When what is written to `DATA_DIR`
+   changes (a line type or its fields in the day files, file names or layout, the settings file),
+   write a migration in the same change that brings existing installations' data to the new form.
+   Like `migrate()` it runs on start, is safe to run again, never loses data (originals go to
+   `DATA_DIR/legacy`), logs what it did, and has a pytest with data in the old form. Describe it
+   under "Migration" in `docs/data-formats.md`.
 
 ## Conventions
 
