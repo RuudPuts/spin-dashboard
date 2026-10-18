@@ -1353,3 +1353,9 @@ test('on a phone the period buttons fill the width instead of scrolling with a h
   assert.doesNotMatch(HTML, /#ranges::-webkit-scrollbar/);
   assert.match(HTML, /@media \(max-width:560px\)\{\s*#ranges\{display:flex;width:100%\}\s*#ranges button\{flex:1 1 auto;white-space:normal/);
 });
+
+test('the English UI calls the hardware "drive" everywhere, never "disk"', () => {
+  const en = HTML.slice(HTML.indexOf('\n  en: {'), HTML.indexOf('\n  nl: {'));
+  const texts = [...en.matchAll(/(\w+):'((?:[^'\\]|\\.)*)'/g)].filter(([, k]) => k !== 'viaDisk').map(([, k, v]) => `${k}: ${v}`);
+  assert.deepEqual(texts.filter((x) => /\bdisks?\b/i.test(x.split(': ')[1])), []);
+});

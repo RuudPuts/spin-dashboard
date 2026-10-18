@@ -86,14 +86,14 @@ Keep the `/data` path on an SSD/cache pool (see [Tips](#tips)). The `/mnt`, `/em
 socket mounts and the privileged/host-PID settings are explained under
 [Permissions, and why](#permissions-and-why).
 
-Open the WebUI on port 8089. The first drive check runs within a minute; file sources appear as soon as a disk is accessed.
+Open the WebUI on port 8089. The first drive check runs within a minute; file sources appear as soon as a drive is accessed.
 
 ## How it works
 
 | Part | How |
 |---|---|
 | Drive state | `hdparm -C` every 60 s (falls back to `smartctl -n standby`). Neither wakes a sleeping drive. Only changes are stored. |
-| Disk names | Read from Unraid's `/var/local/emhttp/disks.ini` (parity, disk1, pool members). |
+| Drive names | Read from Unraid's `/var/local/emhttp/disks.ini` (parity, disk1, pool members). |
 | File access | `fatrace` (fanotify) on every HDD-backed mount, including ZFS datasets. Opens, writes to open files, creates, deletes and moves, each labelled read or write. |
 | Source | The process behind each access is looked up in the host process table. Containers are recognised by cgroup and named via the Docker socket. Access through `/mnt/user` passes through shfs; the dashboard then looks up which process has the file open via `/mnt/user`. |
 | Storage | One plain CSV file per day in `days/` in the appdata folder, with drive states and file access together. History is kept for 30 days by default. Files from older versions (`spin.csv`, `who.csv`, …) are converted automatically on start and moved to `legacy/`. |
@@ -106,7 +106,7 @@ Open the WebUI on port 8089. The first drive check runs within a minute; file so
 | Privileged | fanotify on whole filesystems needs `CAP_SYS_ADMIN`; `hdparm` needs raw access to `/dev/sdX`. |
 | `--pid=host` | To see which process (and which container) opened a file. |
 | `/mnt` read-only, slave | To trace file access on the array and pools. Nothing is ever written there. |
-| `/var/local/emhttp` read-only | Disk names and pool membership. |
+| `/var/local/emhttp` read-only | Drive names and pool membership. |
 | Docker socket read-only | Only to translate container IDs into names. |
 
 ## Tips
@@ -120,7 +120,7 @@ Open the WebUI on port 8089. The first drive check runs within a minute; file so
 
 | Symptom | Check |
 |---|---|
-| No disks in the dashboard | Container log: is `/var/local/emhttp` mounted and is the container privileged? |
+| No drives in the dashboard | Container log: is `/var/local/emhttp` mounted and is the container privileged? |
 | Spin-ups but no sources | Log should show `Watching: /mnt/…`. If not, set *Watch override* to your mounts, e.g. `/mnt/disk1 /mnt/tank`. |
 | Everything shows as `shfs (via /mnt/user)` | The access was too short to trace through shfs. Exclusive shares help. |
 | Containers show as their process name | The Docker socket is not mounted. |

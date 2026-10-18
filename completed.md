@@ -2,6 +2,9 @@
 
 Newest first.
 
+## 2026-10-18: one word for the hardware
+- The English UI says "drive" everywhere (the events table, the filter, the subtitle and the empty-state text said "disk"); a test keeps it that way. The other languages already used one word. README wording follows; screenshots refreshed
+
 ## 2026-10-18: period buttons on a phone
 - The period buttons fill the width on a narrow screen (wider where the text is longer, text may wrap to two lines) instead of scrolling with a hidden scrollbar, so "All" is never cut off
 

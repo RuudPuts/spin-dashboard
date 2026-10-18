@@ -19,7 +19,6 @@ Open work, roughly by priority. Move finished items to `completed.md`.
 - [ ] Bytes per container: only possible for direct `/mnt/diskN` or pool mappings, see `docs/decisions.md`
 
 ## Design (from the 2026-10-16 audit, medium priority)
-- [ ] Use one word for the hardware: the UI mixes "drive" and "disk" (headings say drives, the table and filter say disk)
 - [ ] Full file paths in Active drives and the live feed are only reachable by hover or tap, not by keyboard
 
 ## Technical
