@@ -19,6 +19,6 @@ EXPOSE 8089
 VOLUME ["/data"]
 
 HEALTHCHECK --interval=60s --timeout=5s --retries=3 \
-  CMD python3 -c "import os,urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.environ[\"PORT\"]}/', timeout=4)" || exit 1
+  CMD python3 -c "import os,urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.environ[\"PORT\"]}/health', timeout=4).read()" || exit 1
 
 CMD ["python3", "/app/spindash.py"]

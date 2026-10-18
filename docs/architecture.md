@@ -23,6 +23,7 @@
 │                                      /data/spins.csv (spin-regels van alle dagen)  │
 │                                      /data/containers.json (mounts per container)  │
 │                                      /data/settings.json (GET/POST: instellingen)  │
+│                                      /health (poller, watcher, docker; HEALTHCHECK)│
 └────────────────────────────────────────────────────────────────────────────────────┘
           ▲ /mnt (ro,slave)   ▲ /var/local/emhttp (ro)   ▲ docker.sock (ro)   ▼ /data (rw)
 ```

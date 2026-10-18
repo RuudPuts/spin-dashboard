@@ -24,6 +24,8 @@ def sd(tmp_path, monkeypatch):
     monkeypatch.setattr(spindash, "SETTINGS", str(data / "spindash-settings.json"))
     monkeypatch.setattr(spindash, "DOCKER_SOCK", str(tmp_path / "no-docker.sock"))
     monkeypatch.setattr(spindash, "procs_seen", {})
+    monkeypatch.setattr(spindash, "health", {"started": 1000.0, "poll": None, "poll_error": None, "mounts": [], "docker": None})
+    monkeypatch.setattr(spindash, "threads", {})
     monkeypatch.setattr(spindash, "_containers_cache", {"t": 0.0, "body": None})
     monkeypatch.setenv("TZ", "Europe/Amsterdam")      # dagen en dagstart vast voor de tests
     time.tzset()

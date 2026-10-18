@@ -72,6 +72,10 @@ DAY_FILE = re.compile(r"^\d{4}-\d{2}-\d{2}\.csv(?:\.tmp)?$")
 TYPES = ("disk", "state", "spin", "proc", "who", "activity", "ctr")   # volgorde binnen dezelfde seconde
 
 write_lock = threading.Lock()
+# gezondheid voor /health: wanneer de poller voor het laatst slaagde, wat de watcher bewaakt, of de
+# Docker-events binnenkomen, en de achtergrondthreads (gevuld in main)
+health = {"started": time.time(), "poll": None, "poll_error": None, "mounts": [], "docker": None}
+threads = {}
 # live-verbindingen (Server-Sent Events): elke write_who zet de regel in alle wachtende queues
 streams = []
 streams_lock = threading.Lock()
@@ -331,7 +335,9 @@ def poller():
     while True:
         try:
             poll_once(last)
+            health["poll"], health["poll_error"] = time.time(), None
         except Exception as e:
+            health["poll_error"] = repr(e)
             log("poller error:", repr(e))
         time.sleep(POLL_INTERVAL)
 
@@ -715,6 +721,7 @@ def watcher():
                 else:
                     log("No HDD mounts found under /mnt; retrying in a minute")
                 current = mounts
+                health["mounts"] = list(mounts)
         except Exception as e:
             log("watcher error:", repr(e))
         beat += 1
@@ -756,9 +763,11 @@ def docker_events_once():
     r = c.getresponse()
     if r.status != 200:
         raise OSError(f"docker events: HTTP {r.status}")
+    health["docker"] = "connected"
     while True:
         raw = r.readline()
         if not raw:
+            health["docker"] = "disconnected"
             return
         try:
             line = ctr_line(json.loads(raw))
@@ -770,12 +779,14 @@ def docker_events_once():
 
 def docker_events():
     if not os.path.exists(DOCKER_SOCK):
+        health["docker"] = "no socket"
         log(f"No Docker socket at {DOCKER_SOCK}: container start/stop is not logged")
         return
     while True:
         try:
             docker_events_once()
         except Exception as e:
+            health["docker"] = "disconnected"
             log("docker events:", repr(e))
         time.sleep(30)
 
@@ -1110,6 +1121,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if clean == "/data/containers.json":
             self.send_json(containers_info())
             return
+        if clean == "/health":
+            ok, body = health_status()
+            self.send_json(body, 200 if ok else 503)
+            return
         if clean == "/data/stream":
             self.stream_events()
             return
@@ -1253,6 +1268,31 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
+def health_status(now=None):
+    """(gezond, details) voor /health. Ongezond alleen als de poller te lang niet slaagde of een
+    achtergrondthread gestopt is: dat lost een herstart op. Geen fatrace-processen of geen Docker-socket
+    staan wel in de details, maar maken hem niet ongezond; anders herstart een autoheal hem eindeloos
+    op een systeem zonder HDD's of zonder socket."""
+    now = time.time() if now is None else now
+    since = health["poll"] or health["started"]
+    stale = now - since > 3 * POLL_INTERVAL + 60
+    alive = {name: t.is_alive() for name, t in threads.items()}
+    docker = health["docker"]
+    if docker is None and "docker_events" in alive:
+        docker = "connecting"
+    # docker_events stopt bewust zonder socket; alleen de threads die altijd moeten lopen tellen mee
+    ok = not stale and all(v for name, v in alive.items() if name != "docker_events")
+    return ok, {
+        "ok": ok,
+        "uptime": int(now - health["started"]),
+        "poller": {"last_success": None if health["poll"] is None else int(now - health["poll"]),
+                   "error": health["poll_error"]},
+        "watcher": {"mounts": health["mounts"], "fatrace": sum(p.poll() is None for p in procs)},
+        "docker": docker,
+        "threads": alive,
+    }
+
+
 class Server(http.server.ThreadingHTTPServer):
     def handle_error(self, request, client_address):
         """Een client die de verbinding verbreekt (healthcheck, browser die wegnavigeert) is geen fout:
@@ -1291,7 +1331,8 @@ def main():
     relabel_existing()
     threading.excepthook = lambda a: log("thread error:", repr(a.exc_value))
     for target in (poller, watcher, housekeeping, docker_events):
-        threading.Thread(target=target, daemon=True).start()
+        threads[target.__name__] = threading.Thread(target=target, daemon=True)
+        threads[target.__name__].start()
     web()
 
 

@@ -2,6 +2,10 @@
 
 Newest first.
 
+## 2026-10-18: health endpoint
+- `/health` reports the poller (seconds since the last successful poll, last error), the watched mounts and running `fatrace` processes, the Docker event stream and the background threads; `503` only when the poller is stuck or a thread stopped
+- The Docker `HEALTHCHECK` uses `/health` instead of fetching the whole page (which also caused the "connection reset" tracebacks seen on a real server)
+
 ## 2026-10-18: file paths by keyboard
 - File rows in Reads/Writes per drive, the profile and the live feed can be reached with Tab; focus shows the full path in the overlay, screen readers hear it as the label, Escape closes the overlay, and focus stays on the same path when the feed or the cards redraw
 

@@ -120,6 +120,7 @@ Open the WebUI on port 8089. The first drive check runs within a minute; file so
 
 | Symptom | Check |
 |---|---|
+| Container shows as unhealthy | Open `/health` on the WebUI port: it says whether the poller is stuck (`poller.last_success`, `poller.error`) or a background thread stopped. |
 | No drives in the dashboard | Container log: is `/var/local/emhttp` mounted and is the container privileged? |
 | Spin-ups but no sources | Log should show `Watching: /mnt/…`. If not, set *Watch override* to your mounts, e.g. `/mnt/disk1 /mnt/tank`. |
 | Everything shows as `shfs (via /mnt/user)` | The access was too short to trace through shfs. Exclusive shares help. |
