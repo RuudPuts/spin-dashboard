@@ -2,6 +2,9 @@
 
 Newest first.
 
+## 2026-10-18: CSV export
+- A CSV button in Events downloads the selected period: spin-ups, standby and measured state per drive, file access with source, process, action and path, and container events (a restart as die + start, with the exit code). Hidden paths stay out; columns and values are English; format in `docs/data-formats.md`
+
 ## 2026-10-18: faster shfs lookups
 - `via_user_share` reads all `/proc/*/fd` links once per second into a map by file name instead of once per `shfs` event; a snapshot is only reused for events from before it was taken
 

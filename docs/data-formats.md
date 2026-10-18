@@ -82,6 +82,22 @@ used; health checks (`exec_*`) and other event types are skipped.
 | `/data/settings.json` | Dashboard settings shared by every browser. `GET` returns `{"hide": ["/mnt/user/appdata/*", "*.log"]}`, or `{}` when nothing has been saved yet (the frontend then moves its old `spindash.hide` list from `localStorage` to the server once). `POST` with `Content-Type: application/json` and a JSON object saves it and returns what was stored. Only known keys are kept (unknown ones are ignored, so older and newer frontends can share the file). `hide`: a list of at most 200 strings of at most 500 characters without control characters; whitespace is trimmed, empty and duplicate entries are dropped. Invalid input returns `400` with `{"error": "..."}`, another content type `415`, a body over 64 KiB `413`. |
 | `/data/stream` | Server-Sent Events. Every `who` line is pushed the moment it is logged (`data: <line>`), with a `: ping` every 30 s to keep the connection alive. Powers the live feed; the day files stay the source of truth. |
 
+## CSV export
+
+The CSV button in Events downloads the selected period as `spin-dashboard_YYYYMMDD-HHMM_YYYYMMDD-HHMM.csv`
+(UTF-8 with a byte order mark so Excel reads it correctly, CRLF line endings, RFC 4180 quoting). It
+follows what the dashboard shows, so hidden paths are left out. Column names and values are English in
+every UI language:
+
+| Column | Content |
+|---|---|
+| `time` | Local time, `YYYY-MM-DD HH:MM:SS` |
+| `type` | `spin-up`, `standby`, `state` (measured at the start of a day or after a restart), `access`, `container start`, `container die`, `container healthy`, `container unhealthy` |
+| `drive`, `device` | Drive name (`trunk`, `disk1`) and device (`sdd`); for `access` only the drive |
+| `source_kind`, `source`, `process` | `container`/`unraid`/`user`/`unknown`, its name, and the process inside a container when known |
+| `action` | For `access`: `opened`, `folder opened`, `written`, `created`, `deleted`, `moved`, `share access` |
+| `detail` | The path for `access`, `active`/`standby` for `state`, `exit code N` for `container die` |
+
 ## Settings file
 
 `DATA_DIR/spindash-settings.json` holds what `/data/settings.json` returns: a JSON object, today only

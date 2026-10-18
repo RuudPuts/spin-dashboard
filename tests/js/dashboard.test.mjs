@@ -1377,3 +1377,48 @@ test('full file paths can be reached with the keyboard and keep focus when the f
   assert.equal(d.activeElement.dataset.path, path);                        // focus overleeft het opnieuw tekenen
   dom.window.close();
 });
+
+// jsdom kent Blob.text() niet; FileReader wel
+const blobText = (w, blob) => new Promise((resolve) => { const r = new w.FileReader(); r.onload = () => resolve(r.result); r.readAsText(blob); });
+
+test('the CSV export holds the spin-ups, file access and container events of the period', async () => {
+  const dom = await load(DOCK, 'http://dash/?lang=nl', ['en-US'], null, (w) => {
+    w.URL.createObjectURL = (blob) => { w.__blob = blob; return 'blob:csv'; };
+    w.URL.revokeObjectURL = () => {};
+    w.HTMLAnchorElement.prototype.click = function () { w.__download = this.download; };
+  });
+  const d = dom.window.document, w = dom.window;
+  const btn = d.getElementById('exportCsv');
+  assert.equal(btn.getAttribute('aria-label'), 'Deze periode exporteren als CSV');
+  btn.click();
+  assert.match(w.__download, /^spin-dashboard_\d{8}-\d{4}_\d{8}-\d{4}\.csv$/);
+  const csv = (await blobText(w, w.__blob)).replace(/^\ufeff/, '');
+  const lines = csv.trim().split('\r\n');
+  assert.equal(lines[0], 'time,type,drive,device,source_kind,source,process,action,detail');
+  assert.ok(lines.some((l) => /,spin-up,trunk,sdd,/.test(l)), csv);
+  assert.ok(lines.some((l) => /,standby,trunk,sdd,/.test(l)));
+  assert.ok(lines.some((l) => /,access,trunk,,container,plex,Plex Media Scan,opened,\/mnt\/trunk\/Media\/films\/b\.mkv$/.test(l)), csv);
+  assert.ok(lines.some((l) => /,access,trunk,,container,sonarr,,written,\/mnt\/trunk\/appdata\/sonarr\/sonarr\.db$/.test(l)));
+  assert.ok(lines.some((l) => /,container die,,,container,radarr,,,exit code 0$/.test(l)), csv);
+  assert.ok(lines.some((l) => /,container start,,,container,radarr,,,$/.test(l)));
+  assert.ok(lines.some((l) => /,container start,,,container,plex,,,$/.test(l)));
+  const times = lines.slice(1).map((l) => l.slice(0, 19));
+  assert.deepEqual(times, times.slice().sort());                          // op tijd
+  dom.window.close();
+});
+
+test('CSV cells with commas or quotes are quoted', async () => {
+  const COMMA = served({ [today]: [
+    `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,active`,
+    `${ep(100)},who,container,plex,7,geopend,/mnt/trunk/Media/a, "b".mkv`,
+  ] });
+  const dom = await load(COMMA, 'http://dash/?lang=nl', ['en-US'], null, (w) => {
+    w.URL.createObjectURL = (blob) => { w.__blob = blob; return 'blob:csv'; };
+    w.URL.revokeObjectURL = () => {};
+    w.HTMLAnchorElement.prototype.click = function () {};
+  });
+  dom.window.document.getElementById('exportCsv').click();
+  const csv = await blobText(dom.window, dom.window.__blob);
+  assert.match(csv, /,opened,"\/mnt\/trunk\/Media\/a, ""b"".mkv"\r\n/);
+  dom.window.close();
+});

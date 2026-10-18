@@ -19,6 +19,7 @@ See when your hard drives spin up and down, and **why**.
 - **Paths per container** (in Settings): which folders on the array or a pool each container maps, with an HDD label when, according to your share settings, the folder can be on a hard drive.
 - **Container start, stop and process**: container restarts and health changes are marked on the source timeline and named when they come right before a spin-up; the feed and the profile show which process inside a container did it ("plex › Plex Media Scan").
 - **Reads per drive** and **Writes per drive**: per drive the top sources and files over the selected period — answers "why is this drive never idle", even when there were no spin-ups.
+- **CSV export** of the selected period: spin-ups, file access with source and process, and container events, ready for a spreadsheet.
 - **Live activity feed**: the most recent file events stream in as they happen (over Server-Sent Events), newest first, with an R/W marker, source and relative time.
 - Click a spin-up to see every file that was opened during that session, with time and source.
 - Rankings of what wakes your drives, by folder and by source.
