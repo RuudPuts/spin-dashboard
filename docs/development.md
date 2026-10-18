@@ -36,8 +36,10 @@ start, which is a quick way to try the dashboard on real data. For the frontend 
 `http://localhost:8089/?demo`. Force a language with `?lang=de` (en, nl, fr, de, es); otherwise the
 UI follows the browser language or the last chosen language (`localStorage`, key `spindash.lang`).
 The card layout from Settings is stored per browser under `spindash.cards`: a JSON list of
-`{id, hidden}` in display order (ids `lanes`, `hist`, `causes`, `act`, `feed`, `events`); unknown ids are
-ignored and missing cards are added at the end. Lane grouping is stored under `spindash.group` as
+`{id, hidden}` in display order (ids `lanes`, `hist`, `causes`, `actR`, `actW`, `feed`, `events`); unknown ids are
+ignored and missing cards are added at the end. The old id `act` (one Active drives card) is read as
+`actR` and `actW` in its place, with the same `hidden`. On a wide screen every card with `data-half`
+(all but `lanes` and `events`) takes half the width; below 820px every card is full width. Lane grouping is stored under `spindash.group` as
 `{merge}` (default `true`, pools and the array together); it only changes the view, the day files stay per drive.
 Hidden paths are a JSON list of patterns (`*` anything, `?` one character), stored on the server in
 `DATA_DIR/spindash-settings.json` via `/data/settings.json` (see `docs/data-formats.md`), so every browser

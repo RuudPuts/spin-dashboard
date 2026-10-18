@@ -304,13 +304,16 @@ const RW = served({ [today]: [
   `${ep(120)},who,container,bazarr,12,geopend,/mnt/trunk/Media/series/a.mkv`,
 ] });
 
-test('a write event is grouped under the drive in the active-drives view', async () => {
+test('a write event is grouped under the drive in the writing card, a read in the reading card', async () => {
   const dom = await load(RW);
   const d = dom.window.document;
-  const ad = d.getElementById('actDrives');
-  assert.ok(ad.querySelector('.actdisk'), text(ad));
-  assert.match(text(ad), /plex/);
-  assert.match(text(ad), /sonarr/);
+  const ws = d.getElementById('actWrites'), rs = d.getElementById('actReads');
+  assert.ok(ws.querySelector('.actdisk'), text(ws));
+  assert.match(text(ws), /plex/);
+  assert.match(text(ws), /sonarr/);
+  assert.doesNotMatch(text(ws), /bazarr/);
+  assert.match(text(rs), /bazarr/);
+  assert.doesNotMatch(text(rs), /plex|sonarr/);
   dom.window.close();
 });
 
@@ -330,18 +333,28 @@ test('a write event in a session list carries a W badge, a read an R badge', asy
   dom.window.close();
 });
 
-test('active drives ranks the top writer and shows write counts', async () => {
+test('active drives ranks the top writer and shows write and read counts', async () => {
   const dom = await load(RW);
   const d = dom.window.document;
-  const ad = text(d.getElementById('actDrives'));
-  assert.match(ad, /trunk/);
-  // plex schreef 2x, sonarr 1x, bazarr las 1x -> schrijven staat boven lezen
-  assert.match(ad, /Schrijven/);
-  assert.match(ad, /Lezen/);
-  // volgorde binnen Schrijven: plex (2) voor sonarr (1)
-  const wcol = d.querySelector('.actdisk .actcols > div');
-  const names = [...wcol.querySelectorAll('.cn')].map(text);
+  // plex schreef 2x, sonarr 1x, bazarr las 1x: 4 gebeurtenissen op trunk
+  const ws = text(d.getElementById('actWrites')), rs = text(d.getElementById('actReads'));
+  assert.match(ws, /trunk 3 keer geschreven \(75% van 4 gebeurtenissen\)/);
+  assert.match(rs, /trunk 1 keer gelezen \(25% van 4 gebeurtenissen\)/);
+  // volgorde: plex (2) voor sonarr (1)
+  const names = [...d.querySelectorAll('#actWrites .cn')].map(text);
   assert.ok(names.indexOf('plex') < names.indexOf('sonarr'), names.join(','));
+  dom.window.close();
+});
+
+test('a direction without activity says so in its own card', async () => {
+  const RO = served({ [today]: [
+    `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,active`,
+    `${ep(120)},who,container,bazarr,12,geopend,/mnt/trunk/Media/series/a.mkv`,
+  ] });
+  const dom = await load(RO);
+  const d = dom.window.document;
+  assert.equal(text(d.getElementById('actWrites')), 'Niets geschreven in deze periode.');
+  assert.match(text(d.getElementById('actReads')), /bazarr/);
   dom.window.close();
 });
 
@@ -406,7 +419,7 @@ test('last hour toggle narrows the window and shows minute ticks', async () => {
 test('hovering a file path in Active drives shows the full path overlay', async () => {
   const dom = await load(RW);
   const d = dom.window.document, w = dom.window;
-  const el = d.querySelector('#actDrives .haspath');
+  const el = d.querySelector('#actWrites .haspath');
   assert.ok(el, 'file row with path');
   el.dispatchEvent(new w.Event('focusin', { bubbles: true }));
   const tip = d.getElementById('tip');
@@ -630,7 +643,7 @@ test('the settings button opens a dialog with the language choice and the card l
   assert.equal(gear.getAttribute('aria-expanded'), 'true');
   const names = [...d.querySelectorAll('#cardList li label')].map(text);
   assert.deepEqual(names, ['Tijdlijn per schijf', 'Spin-ups per uur van de dag', 'Wat maakt de schijven wakker',
-    'Actieve schijven', 'Live activiteit', 'Gebeurtenissen']);
+    'Actieve schijven: lezen', 'Actieve schijven: schrijven', 'Live activiteit', 'Gebeurtenissen']);
   d.getElementById('settingsDone').click();
   assert.ok(!d.getElementById('settings').hasAttribute('open'));
   assert.equal(d.activeElement, gear);                    // focus terug op de knop
@@ -640,27 +653,24 @@ test('the settings button opens a dialog with the language choice and the card l
 test('cards can be hidden and moved, and the layout is remembered', async () => {
   const dom = await load(POOL);
   const d = dom.window.document, w = dom.window;
-  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'act', 'feed', 'events']);
-  assert.ok(d.querySelector('[data-card="hist"]').classList.contains('pair'));   // standaard naast elkaar
+  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'actR', 'actW', 'feed', 'events']);
   d.getElementById('openSettings').click();
-  const box = d.querySelector('#cardList li[data-card="act"] input');
+  const box = d.querySelector('#cardList li[data-card="actR"] input');
   box.checked = false; box.dispatchEvent(new w.Event('change', { bubbles: true }));
-  assert.equal(d.querySelector('#dash > [data-card="act"]').hidden, true);
+  assert.equal(d.querySelector('#dash > [data-card="actR"]').hidden, true);
   d.querySelector('#cardList li[data-card="events"] [data-move="-1"]').click();   // gebeurtenissen één omhoog
-  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'events', 'feed']);
+  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'actW', 'events', 'feed']);
   assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="events"] [data-move="-1"]'));
-  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 5 van 6');
+  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 6 van 7');
   d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').click();     // de histogram naar boven
   d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').click();
   assert.equal(d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').disabled, true);
   assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="hist"] [data-move="1"]'));   // bovenaan: focus naar omlaag
-  // de histogram staat nu los van "wat maakt wakker": geen paar meer, allebei de volle breedte
-  assert.ok(!d.querySelector('[data-card="hist"]').classList.contains('pair'));
   const saved = w.localStorage.getItem('spindash.cards');
   dom.window.close();
 
   const again = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w2) => w2.localStorage.setItem('spindash.cards', saved));
-  assert.deepEqual(cardOrder(again.window.document), ['hist', 'lanes', 'causes', 'events', 'feed']);
+  assert.deepEqual(cardOrder(again.window.document), ['hist', 'lanes', 'causes', 'actW', 'events', 'feed']);
   again.window.close();
 });
 
@@ -668,12 +678,32 @@ test('a saved layout with unknown or missing cards still shows every known card'
   const stored = JSON.stringify([{ id: 'feed' }, { id: 'nope' }, { id: 'feed', hidden: true }, { id: 'hist', hidden: true }]);
   const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.cards', stored));
   const d = dom.window.document;
-  assert.deepEqual(cardOrder(d), ['feed', 'lanes', 'causes', 'act', 'events']);
-  assert.ok(!d.querySelector('[data-card="causes"]').classList.contains('pair'));   // halve kaart zonder buur: volle breedte
+  assert.deepEqual(cardOrder(d), ['feed', 'lanes', 'causes', 'actR', 'actW', 'events']);
   d.getElementById('openSettings').click();
   d.getElementById('resetCards').click();
-  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'act', 'feed', 'events']);
+  assert.deepEqual(cardOrder(d), ['lanes', 'hist', 'causes', 'actR', 'actW', 'feed', 'events']);
   assert.equal(dom.window.localStorage.getItem('spindash.cards'), null);
+  dom.window.close();
+});
+
+test('a saved layout with the old Active drives card gets the reading and writing cards in its place', async () => {
+  const stored = JSON.stringify([{ id: 'act', hidden: true }, { id: 'lanes' }, { id: 'events' }, { id: 'hist' }, { id: 'causes' }, { id: 'feed' }]);
+  const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.cards', stored));
+  const d = dom.window.document;
+  assert.deepEqual([...d.querySelectorAll('#dash > [data-card]')].map((el) => el.dataset.card),
+    ['actR', 'actW', 'lanes', 'events', 'hist', 'causes', 'feed']);
+  assert.equal(d.querySelector('#dash > [data-card="actR"]').hidden, true);   // verborgen blijft verborgen
+  assert.equal(d.querySelector('#dash > [data-card="actW"]').hidden, true);
+  dom.window.close();
+});
+
+test('every card except the timeline and the events is half width on a wide screen', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document;
+  const half = [...d.querySelectorAll('#dash > [data-card]')].filter((el) => el.hasAttribute('data-half')).map((el) => el.dataset.card);
+  assert.deepEqual(half, ['hist', 'causes', 'actR', 'actW', 'feed']);
+  assert.match(HTML, /#dash>\.card\[data-half\]\{grid-column:auto\}/);
+  assert.match(HTML, /@media \(max-width:820px\)\{[^@]*#dash>\.card\[data-half\]\{grid-column:1\/-1\}/);   // telefoon: volle breedte
   dom.window.close();
 });
 
@@ -751,17 +781,17 @@ test('cards can be dragged into a new order by their handle', async () => {
   }
   const ev = (type, el, y) => el.dispatchEvent(new w.MouseEvent(type, { bubbles: true, cancelable: true, clientY: y }));
   const grip = d.querySelector('#cardList li[data-card="events"] .grip');
-  ev('pointerdown', grip, 240);
+  ev('pointerdown', grip, 284);
   assert.ok(grip.closest('li').classList.contains('dragging'));
-  ev('pointermove', grip, 120);   // nog geen opslag tijdens het slepen
+  ev('pointermove', grip, 150);   // nog geen opslag tijdens het slepen
   ev('pointermove', grip, 50);    // tussen de eerste en tweede rij
   assert.equal(w.localStorage.getItem('spindash.cards'), null);
   ev('pointerup', d, 50);
-  assert.deepEqual(cardOrder(d), ['lanes', 'events', 'hist', 'causes', 'act', 'feed']);
-  assert.deepEqual([...d.querySelectorAll('#cardList li')].map((li) => li.dataset.card), ['lanes', 'events', 'hist', 'causes', 'act', 'feed']);
+  assert.deepEqual(cardOrder(d), ['lanes', 'events', 'hist', 'causes', 'actR', 'actW', 'feed']);
+  assert.deepEqual([...d.querySelectorAll('#cardList li')].map((li) => li.dataset.card), ['lanes', 'events', 'hist', 'causes', 'actR', 'actW', 'feed']);
   assert.ok(!d.querySelector('#cardList .dragging'));
-  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 2 van 6');
-  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.cards')).map((c) => c.id), ['lanes', 'events', 'hist', 'causes', 'act', 'feed']);
+  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 2 van 7');
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.cards')).map((c) => c.id), ['lanes', 'events', 'hist', 'causes', 'actR', 'actW', 'feed']);
   // de handgreep zit buiten het label: slepen zet het kaartje niet aan of uit
   assert.ok(!d.querySelector('#cardList li label .grip'));
   dom.window.close();

@@ -66,8 +66,8 @@ Texts come from `I18N` (en, nl, fr, de, es) via `t()`; dates via `Intl` in the l
 language. The `(al gestopt)` suffix in who lines is translated when shown; the data format itself
 stays unchanged.
 
-Below the spin-up analysis, the *Active drives* panel shows per drive the top write/read sources and
-files over the period (also without spin-ups), and a *Live activity* feed lists the most recent file
+Below the spin-up analysis, two *Active drives* cards (reading and writing) show per drive the top
+sources and files in that direction over the period (also without spin-ups), and a *Live activity* feed lists the most recent file
 events newest-first with an R/W marker and a relative time. The feed is **live**: the web server keeps
 a Server-Sent Events stream (`/data/stream`) open per browser, and `write_who()` pushes each new line
 onto every open stream the moment it is logged. So the feed updates instantly instead of waiting for

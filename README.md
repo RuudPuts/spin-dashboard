@@ -10,7 +10,7 @@ See when your hard drives spin up and down, and **why**.
 - A timeline per disk: every spin-up, how long it ran, how much of the day the disk was active.
 - The cause of each spin-up: the first file that was opened, and **who** opened it: a Docker container (Plex, Sonarr, Bazarr, …), Unraid itself (mover, cron / User Scripts, webGUI, shfs) or a user (SMB/NFS share, shell).
 - **Reads vs. writes**: each access is labelled read or write, so you can see whether a drive is being read or kept busy by writes (logs, databases, metadata).
-- **Active drives**: per drive, the top write and read sources and files over the selected period — answers "why is this drive never idle", even when there were no spin-ups.
+- **Active drives**: two cards, reading and writing, with per drive the top sources and files over the selected period — answers "why is this drive never idle", even when there were no spin-ups.
 - **Live activity feed**: the most recent file events stream in as they happen (over Server-Sent Events), newest first, with an R/W marker, source and relative time.
 - Click a spin-up to see every file that was opened during that session, with time and source.
 - Rankings of what wakes your drives, by folder and by source.

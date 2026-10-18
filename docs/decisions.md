@@ -100,7 +100,7 @@ A `W` event fires on every write burst, so it is deduplicated per path + source 
 `DEDUP_SECONDS`, exactly like opens; otherwise a busy share would flood the day file. Adding the
 action to the dedup key means a read and a write of the same file each survive once per window.
 
-The frontend's *Active drives* panel answers "why is this drive never idle" directly from the same
+The frontend's *Active drives* cards (one for reads, one for writes) answer "why is this drive never idle" directly from the same
 activity stream: per drive the top write and read sources and files, even when there were no
 spin-ups at all in the period.
 

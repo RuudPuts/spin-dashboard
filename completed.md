@@ -2,6 +2,11 @@
 
 Newest first.
 
+## 2026-10-18: Active drives split into reading and writing
+- Active drives is now two cards, "Active drives: reading" and "Active drives: writing", each listing only the drives with activity in that direction, busiest first, with the share of all file events on that drive
+- On a desktop every card except the timeline and Events takes half the width; on a phone (below 820px) every card stays full width
+- A saved card layout with the old Active drives card gets both new cards in its place, hidden if it was hidden
+
 ## 2026-10-18: hidden paths stored on the server
 - Settings › Hidden paths is now saved in `DATA_DIR/spindash-settings.json` through `GET`/`POST /data/settings.json`, so every browser and device sees the same list
 - Input is validated (list of strings, at most 200 patterns of 500 characters, JSON only, body at most 64 KiB); the watcher skips the settings file like the day files
