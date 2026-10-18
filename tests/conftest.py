@@ -21,6 +21,7 @@ def sd(tmp_path, monkeypatch):
     monkeypatch.setattr(spindash, "ACTIVITY", str(data / "activity.csv"))
     monkeypatch.setattr(spindash, "DAYS", str(data / "days"))
     monkeypatch.setattr(spindash, "LEGACY", str(data / "legacy"))
+    monkeypatch.setattr(spindash, "SETTINGS", str(data / "spindash-settings.json"))
     monkeypatch.setenv("TZ", "Europe/Amsterdam")      # dagen en dagstart vast voor de tests
     time.tzset()
     monkeypatch.setattr(spindash, "EMHTTP", str(tmp_path / "emhttp"))

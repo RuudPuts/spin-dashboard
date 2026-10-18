@@ -125,3 +125,73 @@ def test_unchanged_day_gives_304(server, sd):
     status, body, _ = fetch(server + "/data/days/2026-10-09.csv",
                             **{"Accept-Encoding": "gzip", "If-None-Match": h["ETag"]})
     assert status == 200 and gzip.decompress(body).count(b"\n") == 2
+
+
+# ---------- instellingen (verborgen paden) ----------
+def post(url, body, content_type="application/json"):
+    data = body if isinstance(body, bytes) else json.dumps(body).encode()
+    req = urllib.request.Request(url, data=data, method="POST", headers={"Content-Type": content_type})
+    try:
+        r = urllib.request.urlopen(req, timeout=5)
+        return r.status, json.loads(r.read() or b"null")
+    except urllib.error.HTTPError as e:
+        body = e.read()
+        try:
+            return e.code, json.loads(body)
+        except ValueError:
+            return e.code, None
+
+
+def test_settings_are_empty_until_saved(server, sd):
+    status, body, _ = get(server + "/data/settings.json")
+    assert (status, json.loads(body)) == (200, {})
+    assert not os.path.exists(sd.SETTINGS)
+
+
+def test_saved_hidden_paths_are_returned_and_stored_in_data_dir(server, sd):
+    status, saved = post(server + "/data/settings.json", {"hide": [" /mnt/user/appdata/* ", "", "*.tmp", "*.tmp"]})
+    assert (status, saved) == (200, {"hide": ["/mnt/user/appdata/*", "*.tmp"]})
+    assert json.loads(get(server + "/data/settings.json")[1]) == {"hide": ["/mnt/user/appdata/*", "*.tmp"]}
+    assert json.load(open(sd.SETTINGS)) == {"hide": ["/mnt/user/appdata/*", "*.tmp"]}
+    assert os.path.dirname(sd.SETTINGS) == sd.DATA
+    assert not os.path.exists(sd.SETTINGS + ".tmp")
+    # een lege lijst is ook een keuze: de sleutel blijft, zodat de browser niet opnieuw migreert
+    assert post(server + "/data/settings.json", {"hide": []}) == (200, {"hide": []})
+    assert json.loads(get(server + "/data/settings.json")[1]) == {"hide": []}
+
+
+def test_unknown_settings_keys_are_ignored(server, sd):
+    assert post(server + "/data/settings.json", {"hide": ["a"], "evil": "x"}) == (200, {"hide": ["a"]})
+    assert post(server + "/data/settings.json", {"other": 1}) == (200, {"hide": ["a"]})
+
+
+@pytest.mark.parametrize("body", [
+    [], "x", {"hide": "a"}, {"hide": [1]}, {"hide": [None]}, {"hide": ["a\nb"]},
+    {"hide": ["x" * 501]}, {"hide": [f"p{i}" for i in range(201)]},
+])
+def test_invalid_settings_are_rejected_and_nothing_changes(server, sd, body):
+    post(server + "/data/settings.json", {"hide": ["keep"]})
+    status, err = post(server + "/data/settings.json", body)
+    assert status == 400 and "error" in err
+    assert json.loads(get(server + "/data/settings.json")[1]) == {"hide": ["keep"]}
+
+
+def test_settings_post_needs_json_and_a_sane_size(server, sd):
+    assert post(server + "/data/settings.json", b"{nope", "application/json")[0] == 400
+    assert post(server + "/data/settings.json", b"\xff\xfe", "application/json")[0] == 400
+    # gewoon formulier (kan cross-site zonder preflight): geweigerd
+    assert post(server + "/data/settings.json", b"hide=x", "application/x-www-form-urlencoded")[0] == 415
+    assert post(server + "/data/settings.json", b"{}", "text/plain")[0] == 415
+    big = json.dumps({"hide": ["a" * 400] * 200}).encode()
+    assert len(big) > sd.SETTINGS_BODY_MAX
+    assert post(server + "/data/settings.json", big)[0] == 413
+    assert post(server + "/data/days.json", {"hide": []})[0] == 404
+    assert not os.path.exists(sd.SETTINGS)
+
+
+def test_unreadable_settings_file_counts_as_empty(sd):
+    open(sd.SETTINGS, "w").write("{kapot")
+    assert sd.read_settings() == {}
+    open(sd.SETTINGS, "w").write(json.dumps({"hide": [3]}))
+    assert sd.read_settings() == {}
+    assert sd.save_settings({"hide": ["x"]}) == {"hide": ["x"]}

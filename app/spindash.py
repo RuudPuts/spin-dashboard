@@ -8,7 +8,7 @@ Eén proces met drie onderdelen:
            De namen (parity, disk1, pool, pool2) komen uit Unraid's disks.ini.
   watcher  draait per HDD-mount een `fatrace -c` (fanotify) en legt vast welk proces
            welk bestand opent: een container, Unraid zelf of een gebruiker (SMB/shell).
-  web      serveert het dashboard en de CSV's.
+  web      serveert het dashboard en de CSV's, en bewaart de instellingen (verborgen paden).
 
 Alles staat in DATA_DIR/days: één CSV per dag (YYYY-MM-DD.csv, lokale datum) met regels
 `epoch,soort,...` (disk, state, spin, who, activity). Oudere losse bestanden (spin.csv, disks.csv,
@@ -59,7 +59,10 @@ SPIN = os.path.join(DATA, "spin.csv")
 DISKS = os.path.join(DATA, "disks.csv")
 WHO = os.path.join(DATA, "who.csv")
 ACTIVITY = os.path.join(DATA, "activity.csv")
-OWN_FILES = {"spin.csv", "disks.csv", "who.csv", "activity.csv"}
+# instellingen uit het dashboard (verborgen paden), gedeeld door alle browsers
+SETTINGS = os.path.join(DATA, "spindash-settings.json")
+OWN_FILES = {"spin.csv", "disks.csv", "who.csv", "activity.csv",
+             "spindash-settings.json", "spindash-settings.json.tmp"}
 DAY_FILE = re.compile(r"^\d{4}-\d{2}-\d{2}\.csv(?:\.tmp)?$")
 TYPES = ("disk", "state", "spin", "who", "activity")     # volgorde binnen dezelfde seconde
 
@@ -803,19 +806,76 @@ def migrate():
 
 
 # =====================================================================================
+# Instellingen
+# =====================================================================================
+HIDE_MAX = 200          # patronen
+HIDE_LEN = 500          # tekens per patroon
+SETTINGS_BODY_MAX = 64 * 1024
+settings_lock = threading.Lock()
+
+
+def read_settings():
+    """Opgeslagen instellingen; {} als er (nog) niets is of het bestand onleesbaar is.
+    Zonder sleutel 'hide' weet de browser dat hij zijn eigen lijst eenmalig mag overzetten."""
+    try:
+        with open(SETTINGS) as f:
+            s = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(s, dict):
+        return {}
+    try:
+        return {"hide": clean_hide(s["hide"])} if "hide" in s else {}
+    except ValueError:
+        return {}
+
+
+def clean_hide(value):
+    """Lijst met patronen controleren: alleen tekst, zonder stuurtekens, binnen de limieten.
+    Lege regels vallen weg; ValueError bij iets wat geen geldige lijst is."""
+    if not isinstance(value, list) or len(value) > HIDE_MAX:
+        raise ValueError(f"hide must be a list of at most {HIDE_MAX} patterns")
+    out = []
+    for p in value:
+        if not isinstance(p, str):
+            raise ValueError("every pattern must be a string")
+        p = p.strip()
+        if len(p) > HIDE_LEN or any(ord(c) < 32 or ord(c) == 127 for c in p):
+            raise ValueError(f"patterns are at most {HIDE_LEN} characters, without control characters")
+        if p and p not in out:
+            out.append(p)
+    return out
+
+
+def save_settings(new):
+    """Bekende sleutels uit `new` controleren en atomair wegschrijven (alleen in DATA_DIR).
+    Geeft de opgeslagen instellingen terug; ValueError bij ongeldige invoer."""
+    if not isinstance(new, dict):
+        raise ValueError("settings must be a JSON object")
+    with settings_lock:
+        s = read_settings()
+        if "hide" in new:
+            s["hide"] = clean_hide(new["hide"])
+        tmp = SETTINGS + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(s, f, indent=1)
+        os.replace(tmp, SETTINGS)
+    return s
+
+
+# =====================================================================================
 # Web
 # =====================================================================================
 class Handler(http.server.SimpleHTTPRequestHandler):
-    """/ → dashboard, /data/days.json → lijst van dagen, /data/days/YYYY-MM-DD.csv → dagbestand."""
+    """/ → dashboard, /data/days.json → lijst van dagen, /data/days/YYYY-MM-DD.csv → dagbestand,
+    /data/settings.json → instellingen (GET lezen, POST opslaan)."""
     def do_GET(self):
         clean = self.path.split("?", 1)[0]
         if clean == "/data/days.json":
-            body = json.dumps(days_index()).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self.send_json(days_index())
+            return
+        if clean == "/data/settings.json":
+            self.send_json(read_settings())
             return
         if clean == "/data/stream":
             self.stream_events()
@@ -825,6 +885,42 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_day(os.path.join(DAYS, m.group(1)))
             return
         super().do_GET()
+
+    def do_POST(self):
+        if self.path.split("?", 1)[0] != "/data/settings.json":
+            self.send_error(404)
+            return
+        # alleen JSON: een gewoon formulier van een andere site kan dan niets opslaan
+        # (een cross-site JSON-verzoek vraagt eerst toestemming, die we nooit geven)
+        if self.headers.get("Content-Type", "").split(";")[0].strip().lower() != "application/json":
+            self.send_error(415)
+            return
+        try:
+            size = int(self.headers.get("Content-Length", ""))
+        except ValueError:
+            self.send_error(411)
+            return
+        if not 0 <= size <= SETTINGS_BODY_MAX:
+            self.send_error(413)
+            return
+        try:
+            saved = save_settings(json.loads(self.rfile.read(size) or b"null"))
+        except ValueError as e:      # ook onleesbare JSON
+            self.send_json({"error": str(e)}, 400)
+            return
+        except OSError as e:
+            log("could not save settings:", repr(e))
+            self.send_json({"error": "could not save settings"}, 500)
+            return
+        self.send_json(saved)
+
+    def send_json(self, obj, status=200):
+        body = json.dumps(obj).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def send_day(self, path):
         """Dagbestand met gzip (als de browser dat accepteert) en een ETag, zodat een ongewijzigde

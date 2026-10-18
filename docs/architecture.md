@@ -17,6 +17,7 @@
 │  web ── ThreadingHTTPServer :8089 ── /  → static/index.html                        │
 │                                      /data/days.json, /data/days/<day>.csv         │
 │                                      /data/stream  (SSE: elke who-regel live)      │
+│                                      /data/settings.json (GET/POST: instellingen)  │
 └────────────────────────────────────────────────────────────────────────────────────┘
           ▲ /mnt (ro,slave)   ▲ /var/local/emhttp (ro)   ▲ docker.sock (ro)   ▼ /data (rw)
 ```

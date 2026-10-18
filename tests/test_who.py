@@ -205,6 +205,8 @@ def test_own_day_files_are_not_logged(sd):
     assert sd.is_own_file("/mnt/cache/appdata/spin-dashboard/days/2026-10-09.csv")
     assert sd.is_own_file("/mnt/cache/appdata/spin-dashboard/days/2026-10-09.csv.tmp")
     assert sd.is_own_file("/mnt/cache/appdata/spin-dashboard/who.csv")
+    assert sd.is_own_file("/mnt/cache/appdata/spin-dashboard/spindash-settings.json")
+    assert sd.is_own_file("/mnt/cache/appdata/spin-dashboard/spindash-settings.json.tmp")
     assert not sd.is_own_file("/mnt/trunk/Media/2026-10-09.mkv")
 
 

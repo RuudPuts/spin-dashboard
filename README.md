@@ -18,7 +18,7 @@ See when your hard drives spin up and down, and **why**.
 - Available in English, Dutch, French, German and Spanish. Follows your browser language; pick another one under Settings (the gear at the top right).
 - Settings also let you hide cards and change their order; the layout is remembered per browser.
 - Pools and the array show as one lane each by default (a lane spins when any of its drives spins); one switch in Settings shows every drive separately.
-- Hide noisy paths with wildcards under Settings › Hidden paths (for example `/mnt/user/appdata/*`); they no longer count anywhere in the dashboard. The data on disk stays complete.
+- Hide noisy paths with wildcards under Settings › Hidden paths (for example `/mnt/user/appdata/*`); they no longer count anywhere in the dashboard. The list is stored on the server, so it is the same in every browser. The data on disk stays complete.
 - Works with the array and with HDD pools (XFS, Btrfs, ZFS). SSD/NVMe pools are ignored.
 
 <picture>

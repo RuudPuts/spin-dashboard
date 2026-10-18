@@ -25,8 +25,13 @@ function load(files, url = 'http://dash/?lang=nl', languages = ['en-US'], stored
       if (stored) w.localStorage.setItem('spindash.lang', stored);
       if (setup) setup(w);
       w.__fetched = [];
-      w.fetch = (u) => {
+      w.__posts = [];
+      w.fetch = (u, opts = {}) => {
         w.__fetched.push(u);
+        if (opts.method === 'POST') {     // opslaan: vastleggen; files.POST = false laat het mislukken
+          w.__posts.push({ url: u, type: opts.headers['Content-Type'], body: JSON.parse(opts.body) });
+          return files.POST === false ? Promise.reject(new Error('offline')) : Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+        }
         const key = Object.keys(files).find((k) => u.includes(k));
         if (!key || files[key] === null) return Promise.resolve({ ok: false });
         return Promise.resolve({ ok: true, text: () => Promise.resolve(files[key]),
@@ -813,5 +818,81 @@ test('a hidden path does not show up when it streams in live', async () => {
   await new Promise((r) => setTimeout(r, 400));
   assert.doesNotMatch(feedText(d), /radarr\.db/);
   assert.match(feedText(d), /sonarr\.db/);
+  dom.window.close();
+});
+
+// ---------- verborgen paden op de server ----------
+const withHide = (list) => (w) => w.localStorage.setItem('spindash.hide', JSON.stringify(list));
+const hideSettled = () => new Promise((r) => setTimeout(r, 50));
+
+test('hidden paths come from the server and win over this browser', async () => {
+  const files = { ...POOL, 'settings.json': JSON.stringify({ hide: ['*.mkv'] }) };
+  const dom = await load(files, 'http://dash/?lang=nl', ['en-US'], null, withHide(['/mnt/user/other/*']));
+  const d = dom.window.document, w = dom.window;
+  assert.equal(d.getElementById('hidePaths').value, '*.mkv');
+  assert.doesNotMatch(feedText(d), /\.mkv/);
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.hide')), ['*.mkv']);   // kopie voor als de server weg is
+  assert.deepEqual(w.__posts, []);                                                      // niets overgezet
+  dom.window.close();
+});
+
+test('changing hidden paths saves them on the server as JSON', async () => {
+  const dom = await load({ ...POOL, 'settings.json': JSON.stringify({ hide: [] }) });
+  const d = dom.window.document, w = dom.window;
+  setHide(d, w, ' /mnt/user/Media/series/*\n\n');
+  await hideSettled();
+  assert.deepEqual(w.__posts, [{ url: 'data/settings.json', type: 'application/json', body: { hide: ['/mnt/user/Media/series/*'] } }]);
+  setHide(d, w, '/mnt/user/Media/series/*');      // zelfde lijst: geen nieuw verzoek
+  setHide(d, w, '');
+  await hideSettled();
+  assert.deepEqual(w.__posts.map((p) => p.body), [{ hide: ['/mnt/user/Media/series/*'] }, { hide: [] }]);
+  assert.equal(d.getElementById('hideSaved').textContent, '');
+  dom.window.close();
+});
+
+test('a browser list is moved to the server once when the server has none', async () => {
+  const dom = await load({ ...POOL, 'settings.json': '{}' }, 'http://dash/?lang=nl', ['en-US'], null, withHide(['*.mkv']));
+  const d = dom.window.document, w = dom.window;
+  assert.deepEqual(w.__posts.map((p) => p.body), [{ hide: ['*.mkv'] }]);
+  assert.equal(d.getElementById('hidePaths').value, '*.mkv');
+  assert.doesNotMatch(feedText(d), /\.mkv/);
+  dom.window.close();
+  // zonder eigen lijst valt er niets over te zetten
+  const empty = await load({ ...POOL, 'settings.json': '{}' });
+  assert.deepEqual(empty.window.__posts, []);
+  empty.window.close();
+});
+
+test('without the server, hidden paths stay in this browser', async () => {
+  const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, withHide(['*.mkv']));   // settings.json: 404
+  const d = dom.window.document, w = dom.window;
+  assert.equal(d.getElementById('hidePaths').value, '*.mkv');
+  assert.doesNotMatch(feedText(d), /\.mkv/);
+  setHide(d, w, '*.srt');
+  await hideSettled();
+  assert.deepEqual(w.__posts, []);
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.hide')), ['*.srt']);
+  dom.window.close();
+});
+
+test('a failed save says the list is only kept in this browser', async () => {
+  const dom = await load({ ...POOL, 'settings.json': JSON.stringify({ hide: [] }), POST: false });
+  const d = dom.window.document, w = dom.window;
+  setHide(d, w, '*.mkv');
+  await hideSettled();
+  assert.equal(w.__posts.length, 1);
+  assert.match(d.getElementById('hideSaved').textContent, /alleen in deze browser/);
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.hide')), ['*.mkv']);
+  dom.window.close();
+});
+
+test('demo mode never asks the server for settings', async () => {
+  const dom = await load({ 'settings.json': JSON.stringify({ hide: ['*'] }) }, 'http://dash/?demo&lang=nl', ['en-US'], null, withHide(['*.mkv']));
+  const w = dom.window;
+  assert.ok(!w.__fetched.some((u) => u.includes('settings')));
+  assert.equal(w.document.getElementById('hidePaths').value, '*.mkv');
+  setHide(w.document, w, '*.srt');
+  await hideSettled();
+  assert.deepEqual(w.__posts, []);
   dom.window.close();
 });

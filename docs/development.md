@@ -39,7 +39,12 @@ The card layout from Settings is stored per browser under `spindash.cards`: a JS
 `{id, hidden}` in display order (ids `lanes`, `hist`, `causes`, `act`, `feed`, `events`); unknown ids are
 ignored and missing cards are added at the end. Lane grouping is stored under `spindash.group` as
 `{merge}` (default `true`, pools and the array together); it only changes the view, the day files stay per drive.
-Hidden paths are stored under `spindash.hide` as a JSON list of patterns (`*` anything, `?` one character).
+Hidden paths are a JSON list of patterns (`*` anything, `?` one character), stored on the server in
+`DATA_DIR/spindash-settings.json` via `/data/settings.json` (see `docs/data-formats.md`), so every browser
+sees the same list. The frontend loads them before the first data fetch and saves them on every change.
+A copy stays in `localStorage` under `spindash.hide`; it is used in `?demo` mode and when the server
+cannot be reached, and moved to the server once if the server has no list yet. A failed save is
+shown under the field.
 A pattern with a leading `/` matches the full path and its `/mnt/user/...` form; without it, the path inside
 the share. Hidden activity is filtered out after loading (`data.allAct` → `data.act`), also for live events.
 

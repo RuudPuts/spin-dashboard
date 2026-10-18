@@ -56,7 +56,16 @@ within that window each get their own line.
 |---|---|
 | `/data/days.json` | `{"days": ["2026-10-08", "2026-10-09"], "bytes": 13042817, "sizes": [6521400, 6521417]}`: the days in ascending order, the total size and the size per day (uncompressed). The frontend uses them to fetch only the days it shows and to report loading progress. Older versions sent only `days` (and later `bytes`); the frontend then counts finished days instead of bytes. |
 | `/data/days/YYYY-MM-DD.csv` | One day file, gzip-compressed when the browser sends `Accept-Encoding: gzip` (about 8× smaller on real data). Each response has an `ETag`; a request with a matching `If-None-Match` gets a `304` without a body. Any other path under `/data/` returns 404. |
+| `/data/settings.json` | Dashboard settings shared by every browser. `GET` returns `{"hide": ["/mnt/user/appdata/*", "*.log"]}`, or `{}` when nothing has been saved yet (the frontend then moves its old `spindash.hide` list from `localStorage` to the server once). `POST` with `Content-Type: application/json` and a JSON object saves it and returns what was stored. Only known keys are kept (unknown ones are ignored, so older and newer frontends can share the file). `hide`: a list of at most 200 strings of at most 500 characters without control characters; whitespace is trimmed, empty and duplicate entries are dropped. Invalid input returns `400` with `{"error": "..."}`, another content type `415`, a body over 64 KiB `413`. |
 | `/data/stream` | Server-Sent Events. Every `who` line is pushed the moment it is logged (`data: <line>`), with a `: ping` every 30 s to keep the connection alive. Powers the live feed; the day files stay the source of truth. |
+
+## Settings file
+
+`DATA_DIR/spindash-settings.json` holds what `/data/settings.json` returns: a JSON object, today only
+`{"hide": [...]}` (hidden-path patterns, see `docs/development.md`). It is written atomically (via
+`spindash-settings.json.tmp`) and both names are skipped by the watcher, like the day files. A missing
+or unreadable file counts as "nothing saved". New keys may be added later; readers ignore keys they
+do not know.
 
 ## Retention
 

@@ -2,6 +2,11 @@
 
 Newest first.
 
+## 2026-10-18: hidden paths stored on the server
+- Settings › Hidden paths is now saved in `DATA_DIR/spindash-settings.json` through `GET`/`POST /data/settings.json`, so every browser and device sees the same list
+- Input is validated (list of strings, at most 200 patterns of 500 characters, JSON only, body at most 64 KiB); the watcher skips the settings file like the day files
+- An existing per-browser list (`spindash.hide`) is moved to the server once when the server has none; `localStorage` stays the fallback for `?demo` and when the server is unreachable, and a failed save is shown under the field
+
 ## 2026-10-16: README screenshots
 - New README screenshots of the current dashboard (sample data, 7 days, light and dark), and a light version of the Active drives / Live activity screenshot
 
