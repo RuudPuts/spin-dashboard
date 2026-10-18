@@ -43,7 +43,15 @@ ignored and missing cards are added at the end. The old id `act` (one Active dri
 Key figures, Spin-ups per day, Spin-ups by hour (at least the last 7 days) and Spin duration and rest are
 computed from `data/spins.csv` (all days), per lane as on the timeline (a merged pool counts once); only the
 spinning hours in Key figures add up the physical drives. "Woke quickly" in Spin duration and rest counts
-spin-ups within 30 minutes of going to standby (`QUICK_MS`). The comparison uses the period of the same length right before the shown one,
+spin-ups within 30 minutes of going to standby (`QUICK_MS`).
+The source cards (Timeline per source, What keeps them awake, By source, Rhythm and the profile dialog) share one
+index per render (`sourceIndex()`): per source the spin-ups it caused, reads and writes per lane, every access
+in the window and the kept-awake time. Kept awake: within each spinning period of a lane, every access gets the
+time since the previous access (or since the spin-up), so per period the parts add up to the time from spin-up
+to the last access. Rhythm (`rhythmOf()`) merges accesses within 2 minutes; a fixed interval needs at least 6
+moments with 60% of the gaps within 15% of the median, a daily time at least 3 days whose first activity falls
+within 30 minutes of the median. Because the same file is logged at most once per `DEDUP_SECONDS`, anything
+more frequent shows as that interval. The comparison uses the period of the same length right before the shown one,
 and only when the data covers all of it; "All" has no comparison. Lane grouping is stored under `spindash.group` as
 `{merge}` (default `true`, pools and the array together); it only changes the view, the day files stay per drive.
 Hidden paths are a JSON list of patterns (`*` anything, `?` one character), stored on the server in

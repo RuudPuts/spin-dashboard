@@ -71,7 +71,10 @@ At the top, *Key figures* show spin-ups, spinning hours, the share of time all d
 longest full rest, each compared with the previous period of the same length. *Spin-ups per day* shows
 the trend over all days with the selected period highlighted, and *Spin-ups by hour* covers at least the
 last 7 days. *By source* ranks containers and processes by the spin-ups they caused, with their reads,
-writes and drives. *Spin duration and rest* shows per lane the median run after a spin-up, the longest
+writes and drives. *Timeline per source* draws every access of the busiest sources on the same axis, over a band that
+shows when any drive spins; *What keeps them awake* adds up per source how long its accesses postponed
+the spin-down; *Rhythm* recognises fixed intervals and daily times. Clicking a source name opens its
+profile. *Spin duration and rest* shows per lane the median run after a spin-up, the longest
 rest and how often a drive woke up within 30 minutes of going to standby. Both use `/data/spins.csv`: only the
 spin lines of every day, so the comparison needs no extra day files.
 

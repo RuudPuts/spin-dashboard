@@ -646,7 +646,7 @@ test('the settings button opens a dialog with the language choice and the card l
   assert.ok(d.getElementById('settings').hasAttribute('open'));
   assert.equal(gear.getAttribute('aria-expanded'), 'true');
   const names = [...d.querySelectorAll('#cardList li label')].map(text);
-  assert.deepEqual(names, ['Kerncijfers', 'Tijdlijn per schijf', 'Spin-ups per dag', 'Spin-ups per uur van de dag', 'Wat maakt de schijven wakker', 'Per bron',
+  assert.deepEqual(names, ['Kerncijfers', 'Tijdlijn per schijf', 'Tijdlijn per bron', 'Spin-ups per dag', 'Spin-ups per uur van de dag', 'Wat maakt de schijven wakker', 'Wat houdt ze wakker', 'Per bron', 'Ritme',
     'Actieve schijven: lezen', 'Actieve schijven: schrijven', 'Draaiduur en rust', 'Live activiteit', 'Gebeurtenissen']);
   d.getElementById('settingsDone').click();
   assert.ok(!d.getElementById('settings').hasAttribute('open'));
@@ -657,23 +657,23 @@ test('the settings button opens a dialog with the language choice and the card l
 test('cards can be hidden and moved, and the layout is remembered', async () => {
   const dom = await load(POOL);
   const d = dom.window.document, w = dom.window;
-  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed', 'events']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'srcLanes', 'days', 'hist', 'causes', 'awake', 'src', 'rhythm', 'actR', 'actW', 'rest', 'feed', 'events']);
   d.getElementById('openSettings').click();
   const box = d.querySelector('#cardList li[data-card="actR"] input');
   box.checked = false; box.dispatchEvent(new w.Event('change', { bubbles: true }));
   assert.equal(d.querySelector('#dash > [data-card="actR"]').hidden, true);
   d.querySelector('#cardList li[data-card="events"] [data-move="-1"]').click();   // gebeurtenissen één omhoog
-  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'src', 'actW', 'rest', 'events', 'feed']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'srcLanes', 'days', 'hist', 'causes', 'awake', 'src', 'rhythm', 'actW', 'rest', 'events', 'feed']);
   assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="events"] [data-move="-1"]'));
-  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 10 van 11');
-  for (let i = 0; i < 3; i++) d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').click();   // de histogram naar boven
+  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 13 van 14');
+  for (let i = 0; i < 4; i++) d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').click();   // de histogram naar boven
   assert.equal(d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').disabled, true);
   assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="hist"] [data-move="1"]'));   // bovenaan: focus naar omlaag
   const saved = w.localStorage.getItem('spindash.cards');
   dom.window.close();
 
   const again = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w2) => w2.localStorage.setItem('spindash.cards', saved));
-  assert.deepEqual(cardOrder(again.window.document), ['hist', 'kpi', 'lanes', 'days', 'causes', 'src', 'actW', 'rest', 'events', 'feed']);
+  assert.deepEqual(cardOrder(again.window.document), ['hist', 'kpi', 'lanes', 'srcLanes', 'days', 'causes', 'awake', 'src', 'rhythm', 'actW', 'rest', 'events', 'feed']);
   again.window.close();
 });
 
@@ -681,10 +681,10 @@ test('a saved layout with unknown or missing cards still shows every known card'
   const stored = JSON.stringify([{ id: 'feed' }, { id: 'nope' }, { id: 'feed', hidden: true }, { id: 'hist', hidden: true }]);
   const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.cards', stored));
   const d = dom.window.document;
-  assert.deepEqual(cardOrder(d), ['feed', 'kpi', 'lanes', 'days', 'causes', 'src', 'actR', 'actW', 'rest', 'events']);
+  assert.deepEqual(cardOrder(d), ['feed', 'kpi', 'lanes', 'srcLanes', 'days', 'causes', 'awake', 'src', 'rhythm', 'actR', 'actW', 'rest', 'events']);
   d.getElementById('openSettings').click();
   d.getElementById('resetCards').click();
-  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed', 'events']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'srcLanes', 'days', 'hist', 'causes', 'awake', 'src', 'rhythm', 'actR', 'actW', 'rest', 'feed', 'events']);
   assert.equal(dom.window.localStorage.getItem('spindash.cards'), null);
   dom.window.close();
 });
@@ -694,7 +694,7 @@ test('a saved layout with the old Active drives card gets the reading and writin
   const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.cards', stored));
   const d = dom.window.document;
   assert.deepEqual([...d.querySelectorAll('#dash > [data-card]')].map((el) => el.dataset.card),
-    ['actR', 'actW', 'lanes', 'events', 'hist', 'causes', 'feed', 'kpi', 'days', 'src', 'rest']);
+    ['actR', 'actW', 'lanes', 'events', 'hist', 'causes', 'feed', 'kpi', 'srcLanes', 'days', 'awake', 'src', 'rhythm', 'rest']);
   assert.equal(d.querySelector('#dash > [data-card="actR"]').hidden, true);   // verborgen blijft verborgen
   assert.equal(d.querySelector('#dash > [data-card="actW"]').hidden, true);
   dom.window.close();
@@ -704,7 +704,7 @@ test('every card except the timeline and the events is half width on a wide scre
   const dom = await load(POOL);
   const d = dom.window.document;
   const half = [...d.querySelectorAll('#dash > [data-card]')].filter((el) => el.hasAttribute('data-half')).map((el) => el.dataset.card);
-  assert.deepEqual(half, ['days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed']);
+  assert.deepEqual(half, ['days', 'hist', 'causes', 'awake', 'src', 'rhythm', 'actR', 'actW', 'rest', 'feed']);
   assert.match(HTML, /#dash>\.card\[data-half\]\{grid-column:auto\}/);
   assert.match(HTML, /@media \(max-width:820px\)\{[^@]*#dash>\.card\[data-half\]\{grid-column:1\/-1\}/);   // telefoon: volle breedte
   dom.window.close();
@@ -784,17 +784,17 @@ test('cards can be dragged into a new order by their handle', async () => {
   }
   const ev = (type, el, y) => el.dispatchEvent(new w.MouseEvent(type, { bubbles: true, cancelable: true, clientY: y }));
   const grip = d.querySelector('#cardList li[data-card="events"] .grip');
-  ev('pointerdown', grip, 462);
+  ev('pointerdown', grip, 594);
   assert.ok(grip.closest('li').classList.contains('dragging'));
   ev('pointermove', grip, 150);   // nog geen opslag tijdens het slepen
   ev('pointermove', grip, 50);    // tussen de eerste en tweede rij
   assert.equal(w.localStorage.getItem('spindash.cards'), null);
   ev('pointerup', d, 50);
-  assert.deepEqual(cardOrder(d), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed']);
-  assert.deepEqual([...d.querySelectorAll('#cardList li')].map((li) => li.dataset.card), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'events', 'lanes', 'srcLanes', 'days', 'hist', 'causes', 'awake', 'src', 'rhythm', 'actR', 'actW', 'rest', 'feed']);
+  assert.deepEqual([...d.querySelectorAll('#cardList li')].map((li) => li.dataset.card), ['kpi', 'events', 'lanes', 'srcLanes', 'days', 'hist', 'causes', 'awake', 'src', 'rhythm', 'actR', 'actW', 'rest', 'feed']);
   assert.ok(!d.querySelector('#cardList .dragging'));
-  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 2 van 11');
-  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.cards')).map((c) => c.id), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed']);
+  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 2 van 14');
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.cards')).map((c) => c.id), ['kpi', 'events', 'lanes', 'srcLanes', 'days', 'hist', 'causes', 'awake', 'src', 'rhythm', 'actR', 'actW', 'rest', 'feed']);
   // de handgreep zit buiten het label: slepen zet het kaartje niet aan of uit
   assert.ok(!d.querySelector('#cardList li label .grip'));
   dom.window.close();
@@ -943,7 +943,7 @@ const HISTORY = [
 const byDay = (lines) => {
   const out = {};
   for (const l of lines) (out[dayName(+l.split(',')[0] * 1000)] ||= []).push(l);
-  return served(out);
+  return served(Object.fromEntries(Object.entries(out).sort()));   // days.json is oplopend, zoals de server het levert
 };
 const kpi = (d, key) => d.querySelector(`[data-kpi="${key}"]`);
 
@@ -1078,5 +1078,82 @@ test('demo data is long enough to compare a week with the week before', async ()
   await new Promise((r) => setTimeout(r, 100));
   assert.equal(d.getElementById('kpiNote').textContent, '');
   assert.match(text(kpi(d, 'kpiUps').querySelector('.k-cmp')), /Vorige week: \d+$/);
+  dom.window.close();
+});
+
+// ---------- containers: houdt wakker, ritme, tijdlijn per bron, profiel ----------
+const AWAKE = served({ [today]: [
+  `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,standby`,
+  `${ep(121)},who,container,bazarr,2,geopend,/mnt/trunk/Media/series/a.mkv`,
+  `${ep(120)},spin,sdd,active`,
+  `${ep(110)},who,container,plex,10,geschreven,/mnt/trunk/appdata/plex/Logs/server.log`,
+  `${ep(100)},who,container,sonarr,11,geschreven,/mnt/trunk/appdata/sonarr/sonarr.db`,
+  `${ep(80)},who,container,plex,10,geschreven,/mnt/trunk/appdata/plex/Logs/server.log`,
+  `${ep(60)},spin,sdd,standby`,
+] });
+
+test('"what keeps them awake" adds up the time each access postponed the spin-down', async () => {
+  const dom = await load(AWAKE);
+  const rows = [...dom.window.document.querySelectorAll('#awake .src')].map(text);
+  // plex: 10 min na de spin-up + 20 min na sonarr; sonarr: 10 min na plex; plex was de laatste vóór standby
+  assert.deepEqual(rows, [
+    'container: plex 30 min 1× de laatste toegang vóór standby',
+    'container: sonarr 10 min',
+  ]);
+  dom.window.close();
+});
+
+test('the rhythm card recognises a fixed interval and a daily time', async () => {
+  const lines = [];
+  for (let dd = 5; dd >= 0; dd--) {                      // elke dag begint met disk en state, zoals op de server
+    const t0 = new Date(now - dd * 864e5); t0.setHours(0, 0, 30, 0);
+    lines.push(`${Math.floor(t0 / 1000)},disk,sdd,trunk`, `${Math.floor(t0 / 1000)},state,sdd,active`);
+  }
+  for (let i = 0; i < 9; i++) lines.push(`${ep(200 - i * 15)},who,container,sonarr,11,geschreven,/mnt/trunk/appdata/sonarr/f${i}.db`);
+  for (let dd = 1; dd <= 4; dd++) {                       // vier dagen rond 03:00
+    const at = new Date(now - dd * 864e5); at.setHours(3, 5, dd, 0);
+    lines.push(`${Math.floor(at / 1000)},who,unraid,mover,7,verplaatst,/mnt/trunk/Media/m${dd}.mkv`);
+  }
+  const dom = await load(byDay(lines));
+  const d = dom.window.document;
+  d.querySelector('[data-range="7"]').click();
+  for (let i = 0; i < 40 && !d.querySelector('#rhythm .rhy[data-k="unraid|mover"]'); i++) await new Promise((r) => setTimeout(r, 50));
+  const label = (k) => text(d.querySelector(`#rhythm .rhy[data-k="${k}"] .rhy-label`));
+  assert.equal(label('container|sonarr'), 'elke 15 min');
+  assert.equal(label('unraid|mover'), 'dagelijks rond 03:05');
+  assert.equal(d.querySelectorAll('#rhythm .rhy[data-k="container|sonarr"] .strip i').length, 24);
+  dom.window.close();
+});
+
+test('the timeline per source draws every access as a tick under the spinning band', async () => {
+  const dom = await load(AWAKE);
+  const d = dom.window.document;
+  const rowsEl = [...d.querySelectorAll('#srcLaneList .srow')];
+  assert.deepEqual(rowsEl.map((r) => r.dataset.k), ['container|plex', 'container|bazarr', 'container|sonarr']);
+  const plex = rowsEl[0];
+  assert.equal((plex.querySelector('.tw').getAttribute('d').match(/M/g) || []).length, 2);
+  assert.equal(plex.querySelector('.tr').getAttribute('d'), '');
+  assert.ok(plex.querySelector('.band').getAttribute('d').length > 0);
+  assert.equal(d.getElementById('srcAxis').innerHTML, d.getElementById('axis').innerHTML);
+  dom.window.close();
+});
+
+test('clicking a source opens its profile with figures, heatmap, folders and files', async () => {
+  const dom = await load(AWAKE);
+  const d = dom.window.document;
+  const btn = d.querySelector('#sources .srcbtn[data-src="container|plex"]');
+  btn.click();
+  assert.ok(d.getElementById('profile').hasAttribute('open'));
+  assert.equal(text(d.getElementById('profileTitle')), 'plex');
+  const kpis = [...d.querySelectorAll('#profileBody .kpi')].map((k) => `${text(k.querySelector('.k-label'))} ${text(k.querySelector('.k-val'))}`);
+  assert.deepEqual(kpis, ['Veroorzaakte spin-ups 0', 'Wakker gehouden 30 min', 'Gelezen 0', 'Geschreven 2']);
+  const cells = d.querySelectorAll('#profileBody .heat i');
+  assert.equal(cells.length % 24, 0);
+  assert.equal(d.querySelectorAll('#profileBody .heat i.on').length >= 1, true);
+  assert.match(text(d.getElementById('profileBody')), /appdata\/plex 2/);
+  assert.match(text(d.getElementById('profileBody')), /\/appdata\/plex\/Logs\/server\.log 2/);
+  d.getElementById('profileDone').click();
+  assert.ok(!d.getElementById('profile').hasAttribute('open'));
+  assert.equal(d.activeElement, btn);                      // focus terug op de naam
   dom.window.close();
 });

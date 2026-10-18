@@ -2,6 +2,13 @@
 
 Newest first.
 
+## 2026-10-18: container activity in depth
+- Timeline per source: every access of the busiest sources as a tick (read/write) on the same time axis as the drives, over a band that shows when any drive spins
+- What keeps them awake: per source the spinning time its accesses added by postponing the spin-down, and how often it was the last access before standby
+- Rhythm: per source a 24-hour activity strip and a recognised schedule ("every 2 h", "daily around 03:30"), with a note about the 10-minute dedup
+- Source profile: clicking a source name opens a dialog with its spin-ups, kept-awake time, reads and writes, rhythm, drives, a day × hour heatmap and its top folders and files
+- The sample data gets radarr every 2 hours and the mover daily at 03:30, so the rhythm card has something to recognise; README screenshots refreshed
+
 ## 2026-10-18: README screenshots up to date
 - New screenshots of the current dashboard (sample data, 7 days, light and dark), including Key figures, Spin-ups per day, By source and Spin duration and rest; the detail screenshot now shows the reading/writing cards, Spin duration and rest and Live activity
 - `scripts/screenshots.mjs` recreates them with Playwright; `CLAUDE.md` now requires the screenshots to match the UI in the same commit as any visible change

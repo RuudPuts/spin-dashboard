@@ -4,13 +4,15 @@ See when your hard drives spin up and down, and **why**.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshot-dark.png">
-  <img alt="Spin Dashboard: key figures compared with the previous week, a timeline per lane with every spin-up, spin-ups per day and per hour of day, what wakes the drives, spin-ups and activity by source, active drives for reading and writing, spin duration and rest, live activity and a table of events with the cause of each spin-up" src="docs/images/screenshot-light.png">
+  <img alt="Spin Dashboard: key figures compared with the previous week, a timeline per lane with every spin-up, a timeline per source with every access, spin-ups per day and per hour of day, what wakes the drives and what keeps them awake, spin-ups and activity by source, the rhythm of each source, active drives for reading and writing, spin duration and rest, live activity and a table of events with the cause of each spin-up" src="docs/images/screenshot-light.png">
 </picture>
 
 - **Key figures** at the top: spin-ups, spinning hours, how much of the time all drives slept and the longest full rest, each compared with the previous period, so you see right away whether a change helped.
 - A timeline per disk: every spin-up, how long it ran, how much of the day the disk was active.
 - **Spin-ups per day**: the trend over all stored days, with the selected period highlighted. Spin-ups by hour of day cover at least the last week.
-- **By source**: every container or process ranked by the spin-ups it caused, with how often it read and wrote and on which drives.
+- **By source**: every container or process ranked by the spin-ups it caused, with how often it read and wrote and on which drives. Click a name for its profile: figures, an activity heatmap by day and hour, its folders and files.
+- **What keeps them awake**: which sources keep postponing the spin-down, and by how much spinning time.
+- **Timeline per source** and **Rhythm**: every access per container on the same time axis as the drives, and fixed schedules recognised automatically ("every 15 min", "daily around 03:30").
 - **Spin duration and rest**: per drive the median run after a spin-up, the longest rest, and how often it woke up again within 30 minutes of going to standby (a hint that a longer spin-down delay would help).
 - The cause of each spin-up: the first file that was opened, and **who** opened it: a Docker container (Plex, Sonarr, Bazarr, …), Unraid itself (mover, cron / User Scripts, webGUI, shfs) or a user (SMB/NFS share, shell).
 - **Reads vs. writes**: each access is labelled read or write, so you can see whether a drive is being read or kept busy by writes (logs, databases, metadata).
