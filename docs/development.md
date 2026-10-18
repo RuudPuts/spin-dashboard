@@ -36,12 +36,14 @@ start, which is a quick way to try the dashboard on real data. For the frontend 
 `http://localhost:8089/?demo`. Force a language with `?lang=de` (en, nl, fr, de, es); otherwise the
 UI follows the browser language or the last chosen language (`localStorage`, key `spindash.lang`).
 The card layout from Settings is stored per browser under `spindash.cards`: a JSON list of
-`{id, hidden}` in display order (ids `kpi`, `lanes`, `days`, `hist`, `causes`, `actR`, `actW`, `feed`, `events`); unknown ids are
+`{id, hidden}` in display order (ids `kpi`, `lanes`, `days`, `hist`, `causes`, `src`, `actR`, `actW`, `rest`, `feed`, `events`); unknown ids are
 ignored and missing cards are added at the end. The old id `act` (one Active drives card) is read as
 `actR` and `actW` in its place, with the same `hidden`. On a wide screen every card with `data-half`
 (all but `kpi`, `lanes` and `events`) takes half the width; below 820px every card is full width.
-Key figures and Spin-ups per day are computed from `data/spins.csv` (all days), per lane as on the timeline
-(a merged pool counts once). The comparison uses the period of the same length right before the shown one,
+Key figures, Spin-ups per day, Spin-ups by hour (at least the last 7 days) and Spin duration and rest are
+computed from `data/spins.csv` (all days), per lane as on the timeline (a merged pool counts once); only the
+spinning hours in Key figures add up the physical drives. "Woke quickly" in Spin duration and rest counts
+spin-ups within 30 minutes of going to standby (`QUICK_MS`). The comparison uses the period of the same length right before the shown one,
 and only when the data covers all of it; "All" has no comparison. Lane grouping is stored under `spindash.group` as
 `{merge}` (default `true`, pools and the array together); it only changes the view, the day files stay per drive.
 Hidden paths are a JSON list of patterns (`*` anything, `?` one character), stored on the server in

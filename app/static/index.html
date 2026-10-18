@@ -208,6 +208,7 @@ h3.sub{font-size:0.8438rem;font-weight:600;margin:18px 0 6px}
 .act-note{margin:0 0 8px;font-size:0.8125rem}
 .actlist{margin-top:6px}
 .actlist .cause-row{grid-template-columns:minmax(6rem,1fr) 1.2fr 2rem;padding:2px 0}
+.actlist h4{font-size:0.75rem;font-weight:600;color:var(--muted);margin:8px 0 2px;text-transform:uppercase;letter-spacing:.03em}
 /* live activiteitsfeed: eigen paneel onder Actieve schijven */
 .feed{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto;font-size:0.8125rem}
 /* punt, R/W, pad, bron, tijd: vijf kolommen op één regel */
@@ -223,6 +224,9 @@ h3.sub{font-size:0.8438rem;font-weight:600;margin:18px 0 6px}
 .haspath{cursor:help}
 .feed .fs{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:9rem}
 .feed time{color:var(--muted);white-space:nowrap;font-size:0.75rem}
+.feed .fx{font-weight:600;color:var(--ink)}
+.feed-note{font-size:0.7812rem;margin:0 0 8px}
+.feed-note:empty{display:none}
 @media (prefers-reduced-motion:reduce){.feed li.fresh{animation:none}}
 @media (max-width:600px){.files li{grid-template-columns:4.6rem 1fr}.files .ev,.files .by{display:none}}
 [hidden]{display:none!important}
@@ -248,6 +252,10 @@ h3.sub{font-size:0.8438rem;font-weight:600;margin:18px 0 6px}
 .kpi .k-cmp.worse{color:var(--up-text)}
 .kpi-note{font-size:0.7812rem;margin:10px 0 0}
 .kpi-note:empty{display:none}
+.src{padding:2px 0 6px}
+.src .cause-row{padding-bottom:0}
+.src-sub{font-size:0.75rem;margin-left:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#rest td.quick{color:var(--up-text);font-weight:600}
 .panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
 .panel-head h2{margin:0}
 select{border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:4px 8px}
@@ -361,6 +369,12 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
       <div id="causes"></div>
     </section>
 
+    <section class="panel card" data-card="src" data-half>
+      <h2 data-i18n="srcTitle">By source</h2>
+      <p class="muted act-note" data-i18n="srcNote">Who wakes the drives and who keeps them busy.</p>
+      <div id="sources"></div>
+    </section>
+
     <section class="panel card" data-card="actR" data-half>
       <h2 data-i18n="actRTitle">Active drives: reading</h2>
       <p class="muted act-note" data-i18n="actRNote">Which processes read from the drives, even when they do not spin up.</p>
@@ -373,8 +387,16 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
       <div id="actWrites"></div>
     </section>
 
+    <section class="panel card" data-card="rest" data-half>
+      <h2 data-i18n="restTitle">Spin duration and rest</h2>
+      <p class="muted act-note" data-i18n="restNote">How long drives keep spinning after a spin-up and how long they rest.</p>
+      <div class="tablewrap" id="rest"></div>
+      <p class="muted kpi-note" data-i18n="restQuickNote">Woke quickly: spun up within 30 minutes of going to standby. A longer spin-down delay may help.</p>
+    </section>
+
     <section class="panel card" data-card="feed" data-half>
       <h2 data-i18n="feedTitle">Live activity</h2>
+      <p class="muted feed-note" id="feedNote"></p>
       <ol class="feed" id="feed"></ol>
     </section>
 
@@ -453,7 +475,7 @@ const I18N = {
     prev_30:'Previous month', next_30:'Next month',
     settings:'Settings', done:'Done', cardsTitle:'Cards', cardsNote:'Choose which cards to show and in which order.', moveUp:'Move {name} up', moveDown:'Move {name} down', movedTo:'{name}: position {n} of {total}', resetCards:'Restore default layout',
     viewTitle:'Drives', groupDrives:'Show pools and arrays merged', arrayName:'Array', disk_one:'{n} drive', disk_other:'{n} drives', upOf:'({n} of {total})',
-    allPools:'All pools', allDisksPools:'All drives and pools', dragToMove:'Drag to move', hideTitle:'Hidden paths', hideHelp:'One path per line. * matches anything, ? one character. Example: /mnt/user/appdata/*', hideCount:'{n} of {total} file events hidden', kpiTitle:'Key figures', kpiUps:'Spin-ups', kpiHours:'Spinning hours', kpiRest:'All drives asleep', kpiLongest:'Longest full rest', kpiNoPrev:'Not enough history yet to compare with the previous period.', cmpSame:'unchanged', pp:'pp', cmpBetter:'better', cmpWorse:'worse', daysTitle:'Spin-ups per day', daysBar:'{day}: {n} spin-ups', daysNote:'Last {n} days, {avg} spin-ups per day on average. The selected period is highlighted.', hideSaveFailed:'Could not save on the server; kept in this browser only.', traceHint:'Use the left and right arrow keys to step through the periods.', noDataYet:'No data yet', noData:'No data', lanes:'Timeline per disk',
+    allPools:'All pools', allDisksPools:'All drives and pools', dragToMove:'Drag to move', hideTitle:'Hidden paths', hideHelp:'One path per line. * matches anything, ? one character. Example: /mnt/user/appdata/*', hideCount:'{n} of {total} file events hidden', actProcs:'Processes', actFiles:'Files', feedRepeat:'{n} times among the most recent events', feedNote:'Always the most recent events, whatever period is selected.', srcTitle:'By source', srcNote:'Who wakes the drives and who keeps them busy.', srcUps:'spin-ups caused', srcLine:'{r} reads · {w} writes', restTitle:'Spin duration and rest', restNote:'How long drives keep spinning after a spin-up and how long they rest.', restMedian:'Median run', restLongest:'Longest rest', restQuick:'Woke quickly', restQuickNote:'Woke quickly: spun up within 30 minutes of going to standby. A longer spin-down delay may help.', kpiTitle:'Key figures', kpiUps:'Spin-ups', kpiHours:'Spinning hours', kpiRest:'All drives asleep', kpiLongest:'Longest full rest', kpiNoPrev:'Not enough history yet to compare with the previous period.', cmpSame:'unchanged', pp:'pp', cmpBetter:'better', cmpWorse:'worse', daysTitle:'Spin-ups per day', daysBar:'{day}: {n} spin-ups', daysNote:'Last {n} days, {avg} spin-ups per day on average. The selected period is highlighted.', hideSaveFailed:'Could not save on the server; kept in this browser only.', traceHint:'Use the left and right arrow keys to step through the periods.', noDataYet:'No data yet', noData:'No data', lanes:'Timeline per disk',
     legSpin:'Spinning', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups by hour of day', causesTitle:'What wakes the drives', eventsTitle:'Events',
     onlyUp:'Spin-ups only', devFilter:'Filter by disk', allDisks:'All disks',
@@ -461,12 +483,12 @@ const I18N = {
     summary:'{n} disks, {from} to {to}', demo:'Sample data', live:'Live, updated {time}',
     laneAria:'{name}: {ups} spin-ups, {pct}% active', spinUps:'spin-ups', active:'active',
     histBar:'{from} to {to}: {n} spin-ups',
-    histNote:'{n} spin-ups in this period, {avg} per day on average. Busiest hour: {from} to {to}.',
+    histSpan:'Spin-ups {range}. Busiest hour: {from} to {to}.',
     noUps:'No spin-ups in this period.',
     noActivity:'No file activity yet. As soon as an HDD pool or array disk is accessed, you will see here which folders wake the drives.',
     rootNote:'Root of a pool means only the folder list of the pool was read, without a file being opened afterwards. Usually something requests the share list or /mnt/user, such as an SMB browser, the webGUI or a container scanning /mnt/user. The Dynamix Cache Directories plugin keeps those lists in RAM, so the drive does not have to spin up for them.',
     unknownNote:'Unknown means no file access around the spin-up, for example a SMART poll, a manual spin-up or a folder that was already served from cache.',
-    noActivityAround:'No file activity around these spin-ups', unknown:'Unknown', byWho:'By whom',
+    noActivityAround:'No file activity around these spin-ups', unknown:'Unknown',
     rootOf:'Root of {pool}', dirListOnly:'folder list only', dirListRead:'folder list read only',
     andMore:'and {n} more', noFileActivity:'No file activity seen', noFileActivityLc:'no file activity',
     viaShare:'via share', dirOpened:'folder opened', written:'written', created:'created',
@@ -495,12 +517,12 @@ const I18N = {
   nl: {
     title:'Spin-activiteit Unraid', heading:'Wanneer draaien mijn schijven', loading:'Data laden', language:'Taal',
     period:'Periode', r1:'24 uur', r7:'7 dagen', r30:'30 dagen', rall:'Alles', rh:'Afgelopen uur', now:'Nu',
-    prev_h:'Vorige uur', next_h:'Volgende uur',
+    prev_h:'Vorig uur', next_h:'Volgend uur',
     prev_1:'Vorige dag', next_1:'Volgende dag', prev_7:'Vorige week', next_7:'Volgende week',
     prev_30:'Vorige maand', next_30:'Volgende maand',
     settings:'Instellingen', done:'Klaar', cardsTitle:'Kaartjes', cardsNote:'Kies welke kaartjes je ziet en in welke volgorde.', moveUp:'{name} omhoog', moveDown:'{name} omlaag', movedTo:'{name}: plaats {n} van {total}', resetCards:'Standaardindeling herstellen',
     viewTitle:'Schijven', groupDrives:'Pools en arrays samengevoegd tonen', arrayName:'Array', disk_one:'{n} schijf', disk_other:'{n} schijven', upOf:'({n} van {total})',
-    allPools:'Alle pools', allDisksPools:'Alle schijven en pools', dragToMove:'Sleep om te verplaatsen', hideTitle:'Verborgen paden', hideHelp:'Eén pad per regel. * staat voor alles, ? voor één teken. Bijvoorbeeld: /mnt/user/appdata/*', hideCount:'{n} van {total} bestandsgebeurtenissen verborgen', kpiTitle:'Kerncijfers', kpiUps:'Spin-ups', kpiHours:'Draaiuren', kpiRest:'Alle schijven in rust', kpiLongest:'Langste volledige rust', kpiNoPrev:'Nog te weinig geschiedenis om met de vorige periode te vergelijken.', cmpSame:'gelijk', pp:'procentpunt', cmpBetter:'beter', cmpWorse:'slechter', daysTitle:'Spin-ups per dag', daysBar:'{day}: {n} spin-ups', daysNote:'Laatste {n} dagen, gemiddeld {avg} spin-ups per dag. De gekozen periode is gemarkeerd.', hideSaveFailed:'Opslaan op de server lukte niet; alleen in deze browser bewaard.', traceHint:'Gebruik de pijltjestoetsen links en rechts om door de periodes te stappen.', noDataYet:'Nog geen data', noData:'Geen data', lanes:'Tijdlijn per schijf',
+    allPools:'Alle pools', allDisksPools:'Alle schijven en pools', dragToMove:'Sleep om te verplaatsen', hideTitle:'Verborgen paden', hideHelp:'Eén pad per regel. * staat voor alles, ? voor één teken. Bijvoorbeeld: /mnt/user/appdata/*', hideCount:'{n} van {total} bestandsgebeurtenissen verborgen', actProcs:'Processen', actFiles:'Bestanden', feedRepeat:'{n} keer in de recentste gebeurtenissen', feedNote:'Altijd de nieuwste gebeurtenissen, welke periode je ook kiest.', srcTitle:'Per bron', srcNote:'Wie wekt de schijven en wie houdt ze bezig.', srcUps:'veroorzaakte spin-ups', srcLine:'{r} gelezen · {w} geschreven', restTitle:'Draaiduur en rust', restNote:'Hoe lang de schijven na een spin-up blijven draaien en hoe lang ze rusten.', restMedian:'Mediane draaiduur', restLongest:'Langste rust', restQuick:'Snel weer wakker', restQuickNote:'Snel weer wakker: binnen 30 minuten na standby weer opgespind. Een langere spin-down-vertraging kan helpen.', kpiTitle:'Kerncijfers', kpiUps:'Spin-ups', kpiHours:'Draaiuren', kpiRest:'Alle schijven in rust', kpiLongest:'Langste volledige rust', kpiNoPrev:'Nog te weinig geschiedenis om met de vorige periode te vergelijken.', cmpSame:'gelijk', pp:'procentpunt', cmpBetter:'beter', cmpWorse:'slechter', daysTitle:'Spin-ups per dag', daysBar:'{day}: {n} spin-ups', daysNote:'Laatste {n} dagen, gemiddeld {avg} spin-ups per dag. De gekozen periode is gemarkeerd.', hideSaveFailed:'Opslaan op de server lukte niet; alleen in deze browser bewaard.', traceHint:'Gebruik de pijltjestoetsen links en rechts om door de periodes te stappen.', noDataYet:'Nog geen data', noData:'Geen data', lanes:'Tijdlijn per schijf',
     legSpin:'Draait', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups per uur van de dag', causesTitle:'Wat maakt de schijven wakker', eventsTitle:'Gebeurtenissen',
     onlyUp:'Alleen spin-ups', devFilter:'Filter op schijf', allDisks:'Alle schijven',
@@ -508,12 +530,12 @@ const I18N = {
     summary:'{n} schijven, {from} tot {to}', demo:'Voorbeelddata', live:'Live, bijgewerkt {time}',
     laneAria:'{name}: {ups} spin-ups, {pct}% actief', spinUps:'spin-ups', active:'actief',
     histBar:'{from} tot {to}: {n} spin-ups',
-    histNote:'{n} spin-ups in deze periode, gemiddeld {avg} per dag. Drukste uur: {from} tot {to}.',
+    histSpan:'Spin-ups {range}. Drukste uur: {from} tot {to}.',
     noUps:'Geen spin-ups in deze periode.',
     noActivity:'Nog geen bestandsactiviteit. Zodra een HDD-pool of array-schijf wordt aangesproken, zie je hier welke mappen de schijven wakker maken.',
     rootNote:'Root van een pool betekent dat alleen de mappenlijst van de pool werd gelezen, zonder dat er daarna een bestand werd geopend. Meestal vraagt iets de share-lijst of /mnt/user op, zoals een SMB-verkenner, de webGUI of een container die /mnt/user scant. De plugin Dynamix Cache Directories houdt die lijsten in RAM, zodat de schijf ervoor niet hoeft op te spinnen.',
     unknownNote:'Onbekend betekent geen bestandstoegang rond de spin-up, bijvoorbeeld een SMART-poll, handmatig opspinnen of een map die al uit de cache kwam.',
-    noActivityAround:'Geen bestandsactiviteit rond deze spin-ups', unknown:'Onbekend', byWho:'Door wie',
+    noActivityAround:'Geen bestandsactiviteit rond deze spin-ups', unknown:'Onbekend',
     rootOf:'Root van {pool}', dirListOnly:'alleen mappenlijst', dirListRead:'alleen mappenlijst gelezen',
     andMore:'en nog {n}', noFileActivity:'Geen bestandsactiviteit gezien', noFileActivityLc:'geen bestandsactiviteit',
     viaShare:'via share', dirOpened:'map geopend', written:'geschreven', created:'aangemaakt',
@@ -547,7 +569,7 @@ const I18N = {
     prev_30:'Mois précédent', next_30:'Mois suivant',
     settings:'Réglages', done:'Terminé', cardsTitle:'Cartes', cardsNote:'Choisissez les cartes à afficher et leur ordre.', moveUp:'Monter {name}', moveDown:'Descendre {name}', movedTo:'{name} : position {n} sur {total}', resetCards:'Rétablir la disposition par défaut',
     viewTitle:'Disques', groupDrives:'Afficher les pools et arrays regroupés', arrayName:'Array', disk_one:'{n} disque', disk_other:'{n} disques', upOf:'({n} sur {total})',
-    allPools:'Tous les pools', allDisksPools:'Tous les disques et pools', dragToMove:'Faites glisser pour déplacer', hideTitle:'Chemins masqués', hideHelp:'Un chemin par ligne. * remplace n’importe quoi, ? un seul caractère. Exemple : /mnt/user/appdata/*', hideCount:'{n} sur {total} événements de fichiers masqués', kpiTitle:'Chiffres clés', kpiUps:'Démarrages', kpiHours:'Heures de rotation', kpiRest:'Tous les disques au repos', kpiLongest:'Plus long repos complet', kpiNoPrev:'Pas encore assez d’historique pour comparer avec la période précédente.', cmpSame:'inchangé', pp:'pt', cmpBetter:'mieux', cmpWorse:'moins bien', daysTitle:'Démarrages par jour', daysBar:'{day} : {n} démarrages', daysNote:'{n} derniers jours, {avg} démarrages par jour en moyenne. La période choisie est mise en évidence.', hideSaveFailed:'Impossible d’enregistrer sur le serveur ; conservé uniquement dans ce navigateur.', traceHint:'Utilisez les flèches gauche et droite pour parcourir les périodes.', noDataYet:'Pas encore de données', noData:'Aucune donnée', lanes:'Chronologie par disque',
+    allPools:'Tous les pools', allDisksPools:'Tous les disques et pools', dragToMove:'Faites glisser pour déplacer', hideTitle:'Chemins masqués', hideHelp:'Un chemin par ligne. * remplace n’importe quoi, ? un seul caractère. Exemple : /mnt/user/appdata/*', hideCount:'{n} sur {total} événements de fichiers masqués', actProcs:'Processus', actFiles:'Fichiers', feedRepeat:'{n} fois parmi les événements les plus récents', feedNote:'Toujours les événements les plus récents, quelle que soit la période choisie.', srcTitle:'Par source', srcNote:'Qui réveille les disques et qui les sollicite.', srcUps:'démarrages provoqués', srcLine:'{r} lectures · {w} écritures', restTitle:'Durée de rotation et repos', restNote:'Combien de temps les disques tournent après un démarrage et combien de temps ils se reposent.', restMedian:'Rotation médiane', restLongest:'Plus long repos', restQuick:'Réveil rapide', restQuickNote:'Réveil rapide : redémarré moins de 30 minutes après la mise en veille. Un délai de mise en veille plus long peut aider.', kpiTitle:'Chiffres clés', kpiUps:'Démarrages', kpiHours:'Heures de rotation', kpiRest:'Tous les disques au repos', kpiLongest:'Plus long repos complet', kpiNoPrev:'Pas encore assez d’historique pour comparer avec la période précédente.', cmpSame:'inchangé', pp:'pt', cmpBetter:'mieux', cmpWorse:'moins bien', daysTitle:'Démarrages par jour', daysBar:'{day} : {n} démarrages', daysNote:'{n} derniers jours, {avg} démarrages par jour en moyenne. La période choisie est mise en évidence.', hideSaveFailed:'Impossible d’enregistrer sur le serveur ; conservé uniquement dans ce navigateur.', traceHint:'Utilisez les flèches gauche et droite pour parcourir les périodes.', noDataYet:'Pas encore de données', noData:'Aucune donnée', lanes:'Chronologie par disque',
     legSpin:'En rotation', legIdle:'Veille', legUp:'Démarrage',
     histTitle:'Démarrages par heure de la journée', causesTitle:'Ce qui réveille les disques', eventsTitle:'Événements',
     onlyUp:'Démarrages uniquement', devFilter:'Filtrer par disque', allDisks:'Tous les disques',
@@ -555,12 +577,12 @@ const I18N = {
     summary:'{n} disques, du {from} au {to}', demo:'Données d’exemple', live:'En direct, mis à jour à {time}',
     laneAria:'{name} : {ups} démarrages, {pct} % actif', spinUps:'démarrages', active:'actif',
     histBar:'{from} à {to} : {n} démarrages',
-    histNote:'{n} démarrages sur cette période, {avg} par jour en moyenne. Heure la plus chargée : {from} à {to}.',
+    histSpan:'Démarrages {range}. Heure la plus chargée : {from} à {to}.',
     noUps:'Aucun démarrage sur cette période.',
     noActivity:'Pas encore d’activité de fichiers. Dès qu’un pool HDD ou un disque de l’array est sollicité, vous verrez ici quels dossiers réveillent les disques.',
     rootNote:'Racine d’un pool signifie que seule la liste des dossiers du pool a été lue, sans qu’un fichier soit ouvert ensuite. En général, quelque chose demande la liste des partages ou /mnt/user, comme un explorateur SMB, la webGUI ou un conteneur qui parcourt /mnt/user. Le plugin Dynamix Cache Directories garde ces listes en RAM, pour que le disque n’ait pas à démarrer.',
     unknownNote:'Inconnu signifie aucun accès aux fichiers autour du démarrage, par exemple une lecture SMART, un démarrage manuel ou un dossier déjà servi depuis le cache.',
-    noActivityAround:'Aucune activité de fichiers autour de ces démarrages', unknown:'Inconnu', byWho:'Par qui',
+    noActivityAround:'Aucune activité de fichiers autour de ces démarrages', unknown:'Inconnu',
     rootOf:'Racine de {pool}', dirListOnly:'liste des dossiers seulement', dirListRead:'seule la liste des dossiers a été lue',
     andMore:'et {n} de plus', noFileActivity:'Aucune activité de fichiers', noFileActivityLc:'aucune activité de fichiers',
     viaShare:'via partage', dirOpened:'dossier ouvert', written:'écrit', created:'créé',
@@ -594,7 +616,7 @@ const I18N = {
     prev_30:'Vorheriger Monat', next_30:'Nächster Monat',
     settings:'Einstellungen', done:'Fertig', cardsTitle:'Karten', cardsNote:'Wähle, welche Karten angezeigt werden und in welcher Reihenfolge.', moveUp:'{name} nach oben', moveDown:'{name} nach unten', movedTo:'{name}: Position {n} von {total}', resetCards:'Standardanordnung wiederherstellen',
     viewTitle:'Festplatten', groupDrives:'Pools und Arrays zusammengefasst anzeigen', arrayName:'Array', disk_one:'{n} Festplatte', disk_other:'{n} Festplatten', upOf:'({n} von {total})',
-    allPools:'Alle Pools', allDisksPools:'Alle Festplatten und Pools', dragToMove:'Zum Verschieben ziehen', hideTitle:'Ausgeblendete Pfade', hideHelp:'Ein Pfad pro Zeile. * steht für alles, ? für ein Zeichen. Beispiel: /mnt/user/appdata/*', hideCount:'{n} von {total} Dateiereignissen ausgeblendet', kpiTitle:'Kennzahlen', kpiUps:'Spin-ups', kpiHours:'Laufstunden', kpiRest:'Alle Festplatten im Ruhezustand', kpiLongest:'Längste vollständige Ruhe', kpiNoPrev:'Noch nicht genug Verlauf für einen Vergleich mit dem vorherigen Zeitraum.', cmpSame:'unverändert', pp:'Pp.', cmpBetter:'besser', cmpWorse:'schlechter', daysTitle:'Spin-ups pro Tag', daysBar:'{day}: {n} Spin-ups', daysNote:'Letzte {n} Tage, durchschnittlich {avg} Spin-ups pro Tag. Der gewählte Zeitraum ist hervorgehoben.', hideSaveFailed:'Speichern auf dem Server fehlgeschlagen; nur in diesem Browser gespeichert.', traceHint:'Mit den Pfeiltasten links und rechts gehst du die Zeitabschnitte durch.', noDataYet:'Noch keine Daten', noData:'Keine Daten', lanes:'Zeitleiste pro Festplatte',
+    allPools:'Alle Pools', allDisksPools:'Alle Festplatten und Pools', dragToMove:'Zum Verschieben ziehen', hideTitle:'Ausgeblendete Pfade', hideHelp:'Ein Pfad pro Zeile. * steht für alles, ? für ein Zeichen. Beispiel: /mnt/user/appdata/*', hideCount:'{n} von {total} Dateiereignissen ausgeblendet', actProcs:'Prozesse', actFiles:'Dateien', feedRepeat:'{n}-mal unter den neuesten Ereignissen', feedNote:'Immer die neuesten Ereignisse, unabhängig vom gewählten Zeitraum.', srcTitle:'Nach Quelle', srcNote:'Wer die Festplatten weckt und wer sie beschäftigt.', srcUps:'verursachte Spin-ups', srcLine:'{r} Lesezugriffe · {w} Schreibzugriffe', restTitle:'Laufzeit und Ruhe', restNote:'Wie lange die Festplatten nach einem Spin-up laufen und wie lange sie ruhen.', restMedian:'Mittlere Laufzeit', restLongest:'Längste Ruhe', restQuick:'Schnell wieder wach', restQuickNote:'Schnell wieder wach: innerhalb von 30 Minuten nach dem Standby wieder angelaufen. Eine längere Spin-down-Verzögerung kann helfen.', kpiTitle:'Kennzahlen', kpiUps:'Spin-ups', kpiHours:'Laufstunden', kpiRest:'Alle Festplatten im Ruhezustand', kpiLongest:'Längste vollständige Ruhe', kpiNoPrev:'Noch nicht genug Verlauf für einen Vergleich mit dem vorherigen Zeitraum.', cmpSame:'unverändert', pp:'Pp.', cmpBetter:'besser', cmpWorse:'schlechter', daysTitle:'Spin-ups pro Tag', daysBar:'{day}: {n} Spin-ups', daysNote:'Letzte {n} Tage, durchschnittlich {avg} Spin-ups pro Tag. Der gewählte Zeitraum ist hervorgehoben.', hideSaveFailed:'Speichern auf dem Server fehlgeschlagen; nur in diesem Browser gespeichert.', traceHint:'Mit den Pfeiltasten links und rechts gehst du die Zeitabschnitte durch.', noDataYet:'Noch keine Daten', noData:'Keine Daten', lanes:'Zeitleiste pro Festplatte',
     legSpin:'Läuft', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups nach Tageszeit', causesTitle:'Was weckt die Festplatten', eventsTitle:'Ereignisse',
     onlyUp:'Nur Spin-ups', devFilter:'Nach Festplatte filtern', allDisks:'Alle Festplatten',
@@ -602,12 +624,12 @@ const I18N = {
     summary:'{n} Festplatten, {from} bis {to}', demo:'Beispieldaten', live:'Live, aktualisiert {time}',
     laneAria:'{name}: {ups} Spin-ups, {pct} % aktiv', spinUps:'Spin-ups', active:'aktiv',
     histBar:'{from} bis {to}: {n} Spin-ups',
-    histNote:'{n} Spin-ups in diesem Zeitraum, durchschnittlich {avg} pro Tag. Aktivste Stunde: {from} bis {to}.',
+    histSpan:'Spin-ups {range}. Aktivste Stunde: {from} bis {to}.',
     noUps:'Keine Spin-ups in diesem Zeitraum.',
     noActivity:'Noch keine Dateiaktivität. Sobald auf einen HDD-Pool oder eine Array-Festplatte zugegriffen wird, siehst du hier, welche Ordner die Festplatten wecken.',
     rootNote:'Wurzel eines Pools bedeutet, dass nur die Ordnerliste des Pools gelesen wurde, ohne dass danach eine Datei geöffnet wurde. Meist fragt etwas die Share-Liste oder /mnt/user ab, etwa ein SMB-Explorer, die WebGUI oder ein Container, der /mnt/user durchsucht. Das Plugin Dynamix Cache Directories hält diese Listen im RAM, damit die Festplatte dafür nicht anlaufen muss.',
     unknownNote:'Unbekannt bedeutet: kein Dateizugriff rund um den Spin-up, zum Beispiel eine SMART-Abfrage, ein manueller Spin-up oder ein Ordner, der bereits aus dem Cache kam.',
-    noActivityAround:'Keine Dateiaktivität rund um diese Spin-ups', unknown:'Unbekannt', byWho:'Durch wen',
+    noActivityAround:'Keine Dateiaktivität rund um diese Spin-ups', unknown:'Unbekannt',
     rootOf:'Wurzel von {pool}', dirListOnly:'nur Ordnerliste', dirListRead:'nur Ordnerliste gelesen',
     andMore:'und {n} weitere', noFileActivity:'Keine Dateiaktivität gesehen', noFileActivityLc:'keine Dateiaktivität',
     viaShare:'über Share', dirOpened:'Ordner geöffnet', written:'geschrieben', created:'erstellt',
@@ -641,7 +663,7 @@ const I18N = {
     prev_30:'Mes anterior', next_30:'Mes siguiente',
     settings:'Ajustes', done:'Listo', cardsTitle:'Tarjetas', cardsNote:'Elige qué tarjetas ver y en qué orden.', moveUp:'Subir {name}', moveDown:'Bajar {name}', movedTo:'{name}: posición {n} de {total}', resetCards:'Restaurar la disposición predeterminada',
     viewTitle:'Discos', groupDrives:'Mostrar pools y arrays agrupados', arrayName:'Array', disk_one:'{n} disco', disk_other:'{n} discos', upOf:'({n} de {total})',
-    allPools:'Todos los pools', allDisksPools:'Todos los discos y pools', dragToMove:'Arrastra para mover', hideTitle:'Rutas ocultas', hideHelp:'Una ruta por línea. * sustituye cualquier cosa, ? un solo carácter. Ejemplo: /mnt/user/appdata/*', hideCount:'{n} de {total} eventos de archivos ocultos', kpiTitle:'Cifras clave', kpiUps:'Arranques', kpiHours:'Horas girando', kpiRest:'Todos los discos en reposo', kpiLongest:'Reposo completo más largo', kpiNoPrev:'Todavía no hay historial suficiente para comparar con el periodo anterior.', cmpSame:'sin cambios', pp:'pp', cmpBetter:'mejor', cmpWorse:'peor', daysTitle:'Arranques por día', daysBar:'{day}: {n} arranques', daysNote:'Últimos {n} días, {avg} arranques al día de media. El periodo elegido está resaltado.', hideSaveFailed:'No se pudo guardar en el servidor; solo se guarda en este navegador.', traceHint:'Usa las flechas izquierda y derecha para recorrer los periodos.', noDataYet:'Todavía no hay datos', noData:'Sin datos', lanes:'Cronología por disco',
+    allPools:'Todos los pools', allDisksPools:'Todos los discos y pools', dragToMove:'Arrastra para mover', hideTitle:'Rutas ocultas', hideHelp:'Una ruta por línea. * sustituye cualquier cosa, ? un solo carácter. Ejemplo: /mnt/user/appdata/*', hideCount:'{n} de {total} eventos de archivos ocultos', actProcs:'Procesos', actFiles:'Archivos', feedRepeat:'{n} veces entre los eventos más recientes', feedNote:'Siempre los eventos más recientes, sea cual sea el periodo elegido.', srcTitle:'Por origen', srcNote:'Quién despierta los discos y quién los mantiene ocupados.', srcUps:'arranques provocados', srcLine:'{r} lecturas · {w} escrituras', restTitle:'Duración de giro y reposo', restNote:'Cuánto tiempo siguen girando los discos tras un arranque y cuánto descansan.', restMedian:'Giro mediano', restLongest:'Reposo más largo', restQuick:'Despierta pronto', restQuickNote:'Despierta pronto: arrancado menos de 30 minutos después de entrar en reposo. Un retardo de reposo más largo puede ayudar.', kpiTitle:'Cifras clave', kpiUps:'Arranques', kpiHours:'Horas girando', kpiRest:'Todos los discos en reposo', kpiLongest:'Reposo completo más largo', kpiNoPrev:'Todavía no hay historial suficiente para comparar con el periodo anterior.', cmpSame:'sin cambios', pp:'pp', cmpBetter:'mejor', cmpWorse:'peor', daysTitle:'Arranques por día', daysBar:'{day}: {n} arranques', daysNote:'Últimos {n} días, {avg} arranques al día de media. El periodo elegido está resaltado.', hideSaveFailed:'No se pudo guardar en el servidor; solo se guarda en este navegador.', traceHint:'Usa las flechas izquierda y derecha para recorrer los periodos.', noDataYet:'Todavía no hay datos', noData:'Sin datos', lanes:'Cronología por disco',
     legSpin:'Girando', legIdle:'Reposo', legUp:'Arranque',
     histTitle:'Arranques por hora del día', causesTitle:'Qué despierta los discos', eventsTitle:'Eventos',
     onlyUp:'Solo arranques', devFilter:'Filtrar por disco', allDisks:'Todos los discos',
@@ -649,12 +671,12 @@ const I18N = {
     summary:'{n} discos, del {from} al {to}', demo:'Datos de ejemplo', live:'En directo, actualizado {time}',
     laneAria:'{name}: {ups} arranques, {pct} % activo', spinUps:'arranques', active:'activo',
     histBar:'{from} a {to}: {n} arranques',
-    histNote:'{n} arranques en este periodo, {avg} al día de media. Hora con más actividad: {from} a {to}.',
+    histSpan:'Arranques {range}. Hora con más actividad: {from} a {to}.',
     noUps:'No hay arranques en este periodo.',
     noActivity:'Todavía no hay actividad de archivos. En cuanto se acceda a un pool HDD o a un disco del array, verás aquí qué carpetas despiertan los discos.',
     rootNote:'Raíz de un pool significa que solo se leyó la lista de carpetas del pool, sin que después se abriera ningún archivo. Normalmente algo consulta la lista de recursos compartidos o /mnt/user, como un explorador SMB, la webGUI o un contenedor que recorre /mnt/user. El plugin Dynamix Cache Directories mantiene esas listas en RAM, para que el disco no tenga que arrancar.',
     unknownNote:'Desconocido significa que no hubo acceso a archivos alrededor del arranque, por ejemplo una consulta SMART, un arranque manual o una carpeta que ya venía de la caché.',
-    noActivityAround:'Sin actividad de archivos alrededor de estos arranques', unknown:'Desconocido', byWho:'Por quién',
+    noActivityAround:'Sin actividad de archivos alrededor de estos arranques', unknown:'Desconocido',
     rootOf:'Raíz de {pool}', dirListOnly:'solo lista de carpetas', dirListRead:'solo se leyó la lista de carpetas',
     andMore:'y {n} más', noFileActivity:'No se vio actividad de archivos', noFileActivityLc:'sin actividad de archivos',
     viaShare:'vía recurso compartido', dirOpened:'carpeta abierta', written:'escrito', created:'creado',
@@ -1223,17 +1245,17 @@ function render(){
   renderKpis(a, b);
   renderDays(a, b);
 
-  // histogram
+  // histogram: minstens de laatste 7 dagen tot het eind van het venster, anders zegt één dag weinig
+  const tv = getTrendView(), hFrom = Math.max(Math.min(a, b - 7*DAY), srcStart(tv.data));
   const bins = new Array(24).fill(0);
-  allUps.forEach(u => bins[new Date(u.t).getHours()]++);
+  for (const l of Object.values(tv.disks)) if (l.length) for (const s of segments(l, hFrom, b)) if (isUp(s, hFrom)) bins[new Date(s.from).getHours()]++;
   const max = Math.max(1, ...bins), peak = bins.indexOf(Math.max(...bins));
   const hh = h => String(h).padStart(2,'0') + ':00';
   $('hist').innerHTML = bins.map((n,h) =>
     `<div class="${h===peak && n ? 'peak':''}" style="height:${n/max*100}%" role="img" aria-label="${esc(t('histBar', {from: hh(h), to: hh(h+1), n}))}" title="${esc(t('histBar', {from: hh(h), to: hh(h+1), n}))}"></div>`).join('');
   $('histLabels').innerHTML = bins.map((_,h) => `<span>${h%3===0 ? h : ''}</span>`).join('');
-  const days = Math.max(1, span/DAY);
-  $('histNote').textContent = allUps.length
-    ? t('histNote', {n: allUps.length, avg: (allUps.length/days).toLocaleString(locale(), {minimumFractionDigits:1, maximumFractionDigits:1}), from: hh(peak), to: hh(peak+1)})
+  $('histNote').textContent = bins.some(Boolean)
+    ? t('histSpan', {range: fmtDate.format(hFrom) === fmtDate.format(b) ? fmtDate.format(b) : `${fmtDate.format(hFrom)} – ${fmtDate.format(b)}`, from: hh(peak), to: hh(peak+1)})
     : t('noUps');
 
   // oorzaken
@@ -1259,29 +1281,11 @@ function render(){
         <b>${n}</b>
       </div>`).join('')
       : `<p class="muted">${esc(t('noUps'))}</p>`;
-
-    // door wie
-    if (hasWho() && wakeups.length){
-      const wc = {}, notes = {};
-      wakeups.forEach(u => {
-        const w = u.cause && u.cause.first ? whoFor(u.cause.first) : null;
-        const k = w ? `${w.kind}|${whoLabel(w)}` : `none|${t('unknown')}`;
-        wc[k] = (wc[k] || 0) + 1;
-        notes[k] = !w ? 'whoUnknownNote' : /^shfs\b/.test(w.name) ? 'shfsNote'
-                 : / \(al gestopt\)$/.test(w.name) ? 'stoppedNote' : null;
-      });
-      const wr = Object.entries(wc).sort((p,q) => q[1] - p[1]).slice(0, 8), wm = wr[0][1];
-      $('causes').innerHTML += `<h3 class="sub">${esc(t('byWho'))}</h3>` + wr.map(([k,n]) => {
-        const [kind, label] = k.split('|');
-        return `<div class="cause-row${kind === 'none' ? ' unknown' : ''}">
-          <span class="cause-name"><span class="kind-dot ${esc(kind)}" title="${esc(t('kind_' + kind))}"></span><span class="sr">${esc(t('kind_' + kind))}: </span><span class="cn">${esc(label)}</span>${infoBtn(notes[k])}</span>
-          <span class="cause-bar"><i class="${esc(kind)}" style="width:${n/wm*100}%"></i></span>
-          <b>${n}</b></div>`;
-      }).join('');
-    }
   }
+  renderSources(a, b, devs, groupUps(allUps));
 
   renderActDrives(a, b, devs);
+  renderRest(a, b);
   renderFeed();
 
   // filter + tabel
@@ -1300,20 +1304,20 @@ function render(){
 }
 
 /* ---------- kerncijfers: hoe staat het ervoor, en t.o.v. de vorige periode ---------- */
-// Alles per baan zoals op de tijdlijn (een pool telt als één). "In rust" = geen enkele baan draait.
+// Per baan zoals op de tijdlijn (een pool telt als één), behalve de draaiuren. "In rust" = geen enkele baan draait.
 const isUp = (s, a) => s.st === 'up' && !s.guessed && !s.snap && s.from > a;   // zelfde regel als de banen
 function srcStart(src){
   let m = Infinity;
   for (const l of Object.values(src.disks)) if (l.length) m = Math.min(m, l[0].t);
   return m;
 }
+// Spin-ups per baan (een pool die opspint telt één keer), draaiuren per losse schijf (slijtage, stroom)
 function periodStats(v, a, b){
   const lists = Object.values(v.disks).filter(l => l.length);
   let ups = 0, activeMs = 0, restMs = 0, longest = 0;
-  for (const l of lists) for (const s of segments(l, a, b)){
-    if (s.st !== 'up') continue;
-    activeMs += s.to - s.from;
-    if (isUp(s, a)) ups++;
+  for (const l of lists) for (const s of segments(l, a, b)) if (isUp(s, a)) ups++;
+  for (const l of Object.values(v.data.disks)) if (l.length) for (const s of segments(l, a, b)){
+    if (s.st === 'up') activeMs += s.to - s.from;
   }
   if (lists.length) for (const s of segments(mergeTransitions(lists), a, b)){
     if (s.st === 'down'){ restMs += s.to - s.from; longest = Math.max(longest, s.to - s.from); }
@@ -1379,6 +1383,68 @@ function renderDays(a, b){
     avg: (total / days.length).toLocaleString(locale(), {minimumFractionDigits: 1, maximumFractionDigits: 1})});
 }
 
+/* ---------- per bron: wie wekt de schijven en wie houdt ze bezig ---------- */
+// Per container/proces: hoeveel spin-ups het veroorzaakte (eerste bestand vóór de spin-up), hoeveel
+// het las en schreef in het venster, en op welke banen. Gesorteerd op spin-ups, dan op activiteit.
+function sourceKey(w){ return w ? `${w.kind}|${whoLabel(w)}` : `none|${t('unknown')}`; }
+function sourceNote(w){
+  return !w ? 'whoUnknownNote' : /^shfs\b/.test(w.name) ? 'shfsNote' : / \(al gestopt\)$/.test(w.name) ? 'stoppedNote' : null;
+}
+function renderSources(a, b, devs, wakeups){
+  const el = $('sources');
+  if (!hasAct()){ el.innerHTML = `<p class="muted">${esc(t('noActivity'))}</p>`; return; }
+  const per = {};
+  const get = (w) => { const k = sourceKey(w); return per[k] || (per[k] = {k, note: sourceNote(w), ups: 0, r: 0, w: 0, lanes: new Set()}); };
+  for (const u of wakeups) get(u.cause && u.cause.first ? whoFor(u.cause.first) : null).ups++;
+  const ms = devs.map(d => [d, matcherFor(d)]).filter(([, mm]) => !mm.parity);
+  for (let i = lowerBound(data.act, a); i < data.act.length && data.act[i].t <= b; i++){
+    const e = data.act[i], s = get(whoFor(e));
+    s[(dirOf(e) || (WRITES.test(e.ev) ? 'w' : 'r')) === 'w' ? 'w' : 'r']++;
+    const m = (ms.find(([, mm]) => mm.test(e)) || [])[0];
+    if (m) s.lanes.add(m);
+  }
+  const rows = Object.values(per).sort((p, q) => q.ups - p.ups || (q.r + q.w) - (p.r + p.w)).slice(0, 8);
+  if (!rows.length){ el.innerHTML = `<p class="muted">${esc(t('actNone'))}</p>`; return; }
+  const mx = Math.max(1, ...rows.map(r => r.ups));
+  el.innerHTML = rows.map(r => {
+    const [kind, label] = r.k.split('|'), lanes = [...r.lanes].sort(devOrder).map(nameOf);
+    const where = lanes.length > 3 ? lanes.slice(0, 3).join(', ') + ' +' + (lanes.length - 3) : lanes.join(', ');
+    return `<div class="src">
+      <div class="cause-row${kind === 'none' ? ' unknown' : ''}">
+        <span class="cause-name"><span class="kind-dot ${esc(kind)}" title="${esc(t('kind_' + kind))}"></span><span class="sr">${esc(t('kind_' + kind))}: </span><span class="cn">${esc(label)}</span>${infoBtn(r.note)}</span>
+        <span class="cause-bar"><i class="${esc(kind)}" style="width:${r.ups / mx * 100}%"></i></span>
+        <b title="${esc(t('srcUps'))}">${r.ups}<span class="sr"> ${esc(t('srcUps'))}</span></b></div>
+      <div class="src-sub muted">${esc(t('srcLine', {r: r.r, w: r.w}))}${where ? ' · ' + esc(where) : ''}</div></div>`;
+  }).join('');
+}
+
+/* ---------- draaiduur en rust: per baan hoe lang hij draait na een spin-up en hoe lang hij slaapt ---------- */
+// "Snel weer wakker": opgespind binnen QUICK_MS nadat hij naar standby ging. Dat kost slijtage zonder
+// dat de rust iets oplevert; een langere spin-down-vertraging kan dan helpen.
+const QUICK_MS = 30 * 60e3;
+const median = xs => { if (!xs.length) return null; const s = xs.slice().sort((p, q) => p - q), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+function restStats(list, a, b){
+  const segs = segments(list, a, b), runs = [];
+  let longest = 0, quick = 0;
+  segs.forEach((s, i) => {
+    if (s.st === 'down') longest = Math.max(longest, s.to - s.from);
+    if (!isUp(s, a)) return;
+    runs.push(s.to - s.from);
+    const p = segs[i - 1];
+    if (p && p.st === 'down' && !p.guessed && p.from > a && s.from - p.from < QUICK_MS) quick++;
+  });
+  return {ups: runs.length, median: median(runs), longest, quick};
+}
+function renderRest(a, b){
+  const v = getTrendView(), devs = Object.keys(v.disks).filter(d => v.disks[d].length).sort(devOrder);
+  if (!devs.length){ $('rest').innerHTML = `<p class="muted">${esc(t('noUps'))}</p>`; return; }
+  $('rest').innerHTML = `<table><thead><tr><th>${esc(t('thDisk'))}</th><th>${esc(t('kpiUps'))}</th><th>${esc(t('restMedian'))}</th><th>${esc(t('restLongest'))}</th><th>${esc(t('restQuick'))}</th></tr></thead><tbody>` +
+    devs.map(d => {
+      const r = restStats(v.disks[d], a, b);
+      return `<tr data-dev="${esc(d)}"><td>${esc(nameOf(d))}</td><td>${r.ups}</td><td>${r.median == null ? '–' : esc(dur(r.median))}</td><td>${esc(dur(r.longest))}</td><td class="${r.quick ? 'quick' : ''}">${r.quick}</td></tr>`;
+    }).join('') + '</tbody></table>';
+}
+
 /* ---------- actieve schijven: wie schrijft/leest er, ook zonder spin-up ---------- */
 // Antwoord op "waarom draait deze schijf steeds": per schijf de top-bronnen en -bestanden,
 // gesplitst naar schrijven en lezen, over het huidige venster. Werkt op data.act (zelfde stroom
@@ -1409,6 +1475,7 @@ function actRow(label, n, max, cls){
 }
 // Twee kaartjes: lezen en schrijven. Per kaartje alleen de schijven met activiteit in die richting,
 // de drukste bovenaan, met de top-bronnen en daaronder de top-bestanden.
+const actSection = (key, rows) => rows.length ? `<h4>${esc(t(key))}</h4>${rows.join('')}` : '';
 function renderActDrives(a, b, devs){
   const list = actDrives(a, b, devs);
   for (const dir of ['r', 'w']){
@@ -1422,8 +1489,8 @@ function renderActDrives(a, b, devs){
         <div class="head"><b>${esc(nameOf(d.dev))}</b>
           <span class="muted">${esc(t('actSum' + D, {n: d[dir], tot, pct: Math.round(d[dir] / tot * 100)}))}</span></div>
         <div class="actlist">
-          ${topN(srcs, 4).map(([k, n]) => actRow(k, n, mx)).join('')}
-          ${topN(files, 4).map(([k, n]) => actRow(k, n, mx, 'muted')).join('')}
+          ${actSection('actProcs', topN(srcs, 4).map(([k, n]) => actRow(k, n, mx)))}
+          ${actSection('actFiles', topN(files, 4).map(([k, n]) => actRow(k, n, mx, 'muted')))}
         </div></div>`;
     }).join('');
   }
@@ -1438,7 +1505,7 @@ const feedKey = e => `${Math.round(e.t / 1000)}|${e.ev}|${e.path}`;
 function feedEvents(){
   if (!hasAct()) return [];
   return data.act.filter(e => !isDir(e) || isSmb(e))   // alleen echte bestanden / shares
-    .slice(-FEED_MAX * 4)                              // genoeg marge na dedup
+    .slice(-FEED_MAX * 8)                              // genoeg marge na dedup en samenvoegen
     .reverse();
 }
 function feedAgo(now, ts){
@@ -1452,23 +1519,30 @@ function renderFeed(){
   const el = $('feed');
   const now = Date.now();
   const fresh = [];
-  const lis = [];
+  // hetzelfde (getoonde) pad van dezelfde bron in dezelfde richting komt één keer in de lijst, met ×n;
+  // de tijd is die van de nieuwste keer
+  const items = [], byKey = new Map();
   for (const e of feedEvents()){
     const k = feedKey(e);
     const isFresh = !feedSeen.has(k);
     if (isFresh){ feedSeen.add(k); fresh.push(k); }
-    if (lis.length >= FEED_MAX) continue;
     const d = dirOf(e) || (WRITES.test(e.ev) ? 'w' : 'r');
-    const w = whoFor(e);
-    // toon het share-relatieve pad (mappen + bestand); het volledige pad zit in de hover-overlay
-    lis.push(`<li${isFresh ? ' class="fresh"' : ''} data-k="${esc(k)}">
+    const w = whoFor(e), src = w ? whoLabel(w) : t('unknown');
+    const same = `${d}|${src}|${relPath(e)}`, hit = byKey.get(same);   // zoals getoond: share-pad, niet de schijf
+    if (hit){ hit.n++; hit.fresh = hit.fresh || isFresh; continue; }
+    if (items.length >= FEED_MAX) continue;
+    const it = {e, k, d, src, n: 1, fresh: isFresh};
+    byKey.set(same, it); items.push(it);
+  }
+  // toon het share-relatieve pad (mappen + bestand); het volledige pad zit in de hover-overlay
+  el.innerHTML = items.map(({e, k, d, src, n, fresh}) => `<li${fresh ? ' class="fresh"' : ''} data-k="${esc(k)}">
       <span class="dot ${d}"></span>
       <span class="fb ${d}" title="${esc(t(d === 'w' ? 'rwW' : 'rwR'))}">${d.toUpperCase()}</span>
       <span class="fp haspath" data-path="${esc(e.path)}">${esc(relPath(e))}</span>
-      <span class="fs">${esc(w ? whoLabel(w) : nameOf(e.disk))}</span>
-      <time>${esc(feedAgo(now, e.t))}</time></li>`);
-  }
-  el.innerHTML = lis.join('') || `<li class="muted">${esc(t('actNone'))}</li>`;
+      <span class="fs">${esc(src)}</span>
+      <time>${n > 1 ? `<span class="fx" title="${esc(t('feedRepeat', {n}))}">×${n}</span> ` : ''}${esc(feedAgo(now, e.t))}</time></li>`).join('')
+    || `<li class="muted">${esc(t('actNone'))}</li>`;
+  $('feedNote').textContent = offset > 0 ? t('feedNote') : '';
   // beperk de geheugen van feedSeen tot wat er nu zichtbaar is
   if (feedSeen.size > 2000){ feedSeen.clear(); for (const e of feedEvents()) feedSeen.add(feedKey(e)); }
 }
@@ -1517,11 +1591,13 @@ function hideInfo(){
   $('tip').hidden = true;
 }
 const infoOf = e => e.target.closest && e.target.closest('.info');
-$('causes').addEventListener('pointerover', e => { const b = infoOf(e); if (b && e.pointerType !== 'touch') showInfo(b); });
-$('causes').addEventListener('pointerout', e => { if (infoOf(e) && e.pointerType !== 'touch') hideInfo(); });
-$('causes').addEventListener('focusin', e => { const b = infoOf(e); if (b) showInfo(b); });
-$('causes').addEventListener('focusout', e => { if (infoOf(e)) hideInfo(); });
-$('causes').addEventListener('click', e => { const b = infoOf(e); if (!b) return; infoOpen === b ? hideInfo() : showInfo(b); });
+for (const id of ['causes', 'sources']){              // ranglijsten met uitleg-icoontjes
+  $(id).addEventListener('pointerover', e => { const b = infoOf(e); if (b && e.pointerType !== 'touch') showInfo(b); });
+  $(id).addEventListener('pointerout', e => { if (infoOf(e) && e.pointerType !== 'touch') hideInfo(); });
+  $(id).addEventListener('focusin', e => { const b = infoOf(e); if (b) showInfo(b); });
+  $(id).addEventListener('focusout', e => { if (infoOf(e)) hideInfo(); });
+  $(id).addEventListener('click', e => { const b = infoOf(e); if (!b) return; infoOpen === b ? hideInfo() : showInfo(b); });
+}
 document.addEventListener('pointerdown', e => { if (infoOpen && !infoOf(e)) hideInfo(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') hideInfo(); });
 addEventListener('scroll', () => { hideInfo(); if (traceFocus) $('tip').hidden = true; }, {passive: true});
@@ -1715,7 +1791,8 @@ applyStatic();
 // Opgeslagen als [{id, hidden}] in de getoonde volgorde. Onbekende ids vallen weg en kaartjes die er
 // later bij komen verschijnen achteraan, zodat een oude indeling blijft werken.
 const CARDS_KEY = 'spindash.cards';
-const CARD_TITLES = {kpi:'kpiTitle', lanes:'lanes', days:'daysTitle', hist:'histTitle', causes:'causesTitle', actR:'actRTitle', actW:'actWTitle', feed:'feedTitle', events:'eventsTitle'};
+const CARD_TITLES = {kpi:'kpiTitle', lanes:'lanes', days:'daysTitle', hist:'histTitle', causes:'causesTitle', src:'srcTitle',
+  actR:'actRTitle', actW:'actWTitle', rest:'restTitle', feed:'feedTitle', events:'eventsTitle'};
 // "Actieve schijven" (act) is gesplitst in lezen en schrijven; een oude indeling krijgt beide op die plek
 const CARD_RENAMED = {act: ['actR', 'actW']};
 const defaultCards = () => Object.keys(CARD_TITLES).map(id => ({id, hidden: false}));

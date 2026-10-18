@@ -2,6 +2,15 @@
 
 Newest first.
 
+## 2026-10-18: card review
+- New card By source: containers and processes ranked by the spin-ups they caused, with reads, writes and the drives they touched; "By whom" moved here from What wakes the drives
+- New card Spin duration and rest: per lane the median run after a spin-up, the longest rest and "woke quickly" (spun up within 30 minutes of going to standby)
+- Spin-ups by hour of day now covers at least the last 7 days, and no longer repeats the spin-up count from Key figures
+- Key figures: spinning hours add up the physical drives (spin-ups stay per lane)
+- Reading and writing cards have "Processes" and "Files" headings again
+- Live activity merges repeats of the same file into one row with ×n, shows "Unknown" instead of the drive name when the source is unknown, and says it always shows the newest events when an earlier period is selected
+- Dutch: "Vorig uur" / "Volgend uur" instead of "Vorige uur" / "Volgende uur"
+
 ## 2026-10-18: key figures and spin-ups per day
 - New card Key figures at the top: spin-ups, spinning hours, share of time all drives slept and the longest full rest, each compared with the previous period of the same length (arrow, change, the previous value, and better/worse in colour and for screen readers). Shown only when the data covers the whole previous period
 - New card Spin-ups per day: one bar per day over all days (up to 90), the selected period highlighted, with the daily average

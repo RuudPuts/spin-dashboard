@@ -69,7 +69,10 @@ stays unchanged.
 
 At the top, *Key figures* show spin-ups, spinning hours, the share of time all drives slept and the
 longest full rest, each compared with the previous period of the same length. *Spin-ups per day* shows
-the trend over all days with the selected period highlighted. Both use `/data/spins.csv`: only the
+the trend over all days with the selected period highlighted, and *Spin-ups by hour* covers at least the
+last 7 days. *By source* ranks containers and processes by the spin-ups they caused, with their reads,
+writes and drives. *Spin duration and rest* shows per lane the median run after a spin-up, the longest
+rest and how often a drive woke up within 30 minutes of going to standby. Both use `/data/spins.csv`: only the
 spin lines of every day, so the comparison needs no extra day files.
 
 Below the spin-up analysis, two *Active drives* cards (reading and writing) show per drive the top

@@ -100,10 +100,14 @@ test('session list collapses SMB access to one entry per share', async () => {
   dom.window.close();
 });
 
-test('"Door wie" ranks sources of spin-ups', async () => {
+test('"Per bron" ranks sources by the spin-ups they caused, with reads, writes and drives', async () => {
   const dom = await load(POOL);
-  const causes = text(dom.window.document.getElementById('causes'));
-  assert.match(causes, /Media\/series 1 Door wie container: bazarr 1/);   // soort als tekst voor schermlezers
+  const d = dom.window.document;
+  const rows = [...d.querySelectorAll('#sources .src')].map(text);
+  // soort als tekst voor schermlezers; spin-ups eerst, daarna de activiteit
+  assert.equal(rows[0], 'container: bazarr 1 veroorzaakte spin-ups 1 gelezen · 0 geschreven · trunk');
+  assert.ok(rows.slice(1).every((r) => / 0 veroorzaakte spin-ups /.test(r)), rows.join('\n'));
+  assert.doesNotMatch(text(d.getElementById('causes')), /Door wie|bazarr/);   // staat niet meer bij de oorzaken
   dom.window.close();
 });
 
@@ -244,7 +248,7 @@ const ROOT = served({ [today]: [
 test('ranking rows that need explaining get an info icon with a tooltip', async () => {
   const dom = await load(ROOT);
   const d = dom.window.document, w = dom.window;
-  const infos = [...d.querySelectorAll('#causes .info')].map((b) => [text(b.closest('.cause-name').querySelector('.cn')), b.dataset.info]);
+  const infos = [...d.querySelectorAll('#causes .info, #sources .info')].map((b) => [text(b.closest('.cause-name').querySelector('.cn')), b.dataset.info]);
   assert.deepEqual(infos, [
     ['Root van trunk', 'rootNote'],
     ['shfs (via /mnt/user)', 'shfsNote'],
@@ -269,7 +273,7 @@ test('ranking rows that need explaining get an info icon with a tooltip', async 
 test('tooltip text follows the chosen language', async () => {
   const dom = await load(ROOT, 'http://dash/?lang=de');
   const d = dom.window.document;
-  const btn = d.querySelector('#causes .info[data-info="stoppedNote"]');
+  const btn = d.querySelector('#sources .info[data-info="stoppedNote"]');
   assert.equal(text(btn.closest('.cause-name').querySelector('.cn')), 'find (bereits beendet)');
   btn.click();
   assert.match(d.getElementById('tip').textContent, /^Der Prozess war bereits beendet/);
@@ -622,7 +626,7 @@ test('histogram bars and info icons carry text for screen readers', async () => 
 test('the kind of source is named in text, not only by the colour of its dot', async () => {
   const dom = await load(POOL);
   const d = dom.window.document;
-  const dot = d.querySelector('#causes .kind-dot.container');
+  const dot = d.querySelector('#sources .kind-dot.container');
   assert.equal(dot.title, 'container');
   assert.equal(dot.nextElementSibling.className, 'sr');
   assert.equal(dot.nextElementSibling.textContent, 'container: ');
@@ -642,8 +646,8 @@ test('the settings button opens a dialog with the language choice and the card l
   assert.ok(d.getElementById('settings').hasAttribute('open'));
   assert.equal(gear.getAttribute('aria-expanded'), 'true');
   const names = [...d.querySelectorAll('#cardList li label')].map(text);
-  assert.deepEqual(names, ['Kerncijfers', 'Tijdlijn per schijf', 'Spin-ups per dag', 'Spin-ups per uur van de dag', 'Wat maakt de schijven wakker',
-    'Actieve schijven: lezen', 'Actieve schijven: schrijven', 'Live activiteit', 'Gebeurtenissen']);
+  assert.deepEqual(names, ['Kerncijfers', 'Tijdlijn per schijf', 'Spin-ups per dag', 'Spin-ups per uur van de dag', 'Wat maakt de schijven wakker', 'Per bron',
+    'Actieve schijven: lezen', 'Actieve schijven: schrijven', 'Draaiduur en rust', 'Live activiteit', 'Gebeurtenissen']);
   d.getElementById('settingsDone').click();
   assert.ok(!d.getElementById('settings').hasAttribute('open'));
   assert.equal(d.activeElement, gear);                    // focus terug op de knop
@@ -653,15 +657,15 @@ test('the settings button opens a dialog with the language choice and the card l
 test('cards can be hidden and moved, and the layout is remembered', async () => {
   const dom = await load(POOL);
   const d = dom.window.document, w = dom.window;
-  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'actR', 'actW', 'feed', 'events']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed', 'events']);
   d.getElementById('openSettings').click();
   const box = d.querySelector('#cardList li[data-card="actR"] input');
   box.checked = false; box.dispatchEvent(new w.Event('change', { bubbles: true }));
   assert.equal(d.querySelector('#dash > [data-card="actR"]').hidden, true);
   d.querySelector('#cardList li[data-card="events"] [data-move="-1"]').click();   // gebeurtenissen één omhoog
-  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'actW', 'events', 'feed']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'src', 'actW', 'rest', 'events', 'feed']);
   assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="events"] [data-move="-1"]'));
-  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 8 van 9');
+  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 10 van 11');
   for (let i = 0; i < 3; i++) d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').click();   // de histogram naar boven
   assert.equal(d.querySelector('#cardList li[data-card="hist"] [data-move="-1"]').disabled, true);
   assert.equal(d.activeElement, d.querySelector('#cardList li[data-card="hist"] [data-move="1"]'));   // bovenaan: focus naar omlaag
@@ -669,7 +673,7 @@ test('cards can be hidden and moved, and the layout is remembered', async () => 
   dom.window.close();
 
   const again = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w2) => w2.localStorage.setItem('spindash.cards', saved));
-  assert.deepEqual(cardOrder(again.window.document), ['hist', 'kpi', 'lanes', 'days', 'causes', 'actW', 'events', 'feed']);
+  assert.deepEqual(cardOrder(again.window.document), ['hist', 'kpi', 'lanes', 'days', 'causes', 'src', 'actW', 'rest', 'events', 'feed']);
   again.window.close();
 });
 
@@ -677,10 +681,10 @@ test('a saved layout with unknown or missing cards still shows every known card'
   const stored = JSON.stringify([{ id: 'feed' }, { id: 'nope' }, { id: 'feed', hidden: true }, { id: 'hist', hidden: true }]);
   const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.cards', stored));
   const d = dom.window.document;
-  assert.deepEqual(cardOrder(d), ['feed', 'kpi', 'lanes', 'days', 'causes', 'actR', 'actW', 'events']);
+  assert.deepEqual(cardOrder(d), ['feed', 'kpi', 'lanes', 'days', 'causes', 'src', 'actR', 'actW', 'rest', 'events']);
   d.getElementById('openSettings').click();
   d.getElementById('resetCards').click();
-  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'actR', 'actW', 'feed', 'events']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'lanes', 'days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed', 'events']);
   assert.equal(dom.window.localStorage.getItem('spindash.cards'), null);
   dom.window.close();
 });
@@ -690,7 +694,7 @@ test('a saved layout with the old Active drives card gets the reading and writin
   const dom = await load(POOL, 'http://dash/?lang=nl', ['en-US'], null, (w) => w.localStorage.setItem('spindash.cards', stored));
   const d = dom.window.document;
   assert.deepEqual([...d.querySelectorAll('#dash > [data-card]')].map((el) => el.dataset.card),
-    ['actR', 'actW', 'lanes', 'events', 'hist', 'causes', 'feed', 'kpi', 'days']);
+    ['actR', 'actW', 'lanes', 'events', 'hist', 'causes', 'feed', 'kpi', 'days', 'src', 'rest']);
   assert.equal(d.querySelector('#dash > [data-card="actR"]').hidden, true);   // verborgen blijft verborgen
   assert.equal(d.querySelector('#dash > [data-card="actW"]').hidden, true);
   dom.window.close();
@@ -700,7 +704,7 @@ test('every card except the timeline and the events is half width on a wide scre
   const dom = await load(POOL);
   const d = dom.window.document;
   const half = [...d.querySelectorAll('#dash > [data-card]')].filter((el) => el.hasAttribute('data-half')).map((el) => el.dataset.card);
-  assert.deepEqual(half, ['days', 'hist', 'causes', 'actR', 'actW', 'feed']);
+  assert.deepEqual(half, ['days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed']);
   assert.match(HTML, /#dash>\.card\[data-half\]\{grid-column:auto\}/);
   assert.match(HTML, /@media \(max-width:820px\)\{[^@]*#dash>\.card\[data-half\]\{grid-column:1\/-1\}/);   // telefoon: volle breedte
   dom.window.close();
@@ -780,17 +784,17 @@ test('cards can be dragged into a new order by their handle', async () => {
   }
   const ev = (type, el, y) => el.dispatchEvent(new w.MouseEvent(type, { bubbles: true, cancelable: true, clientY: y }));
   const grip = d.querySelector('#cardList li[data-card="events"] .grip');
-  ev('pointerdown', grip, 374);
+  ev('pointerdown', grip, 462);
   assert.ok(grip.closest('li').classList.contains('dragging'));
   ev('pointermove', grip, 150);   // nog geen opslag tijdens het slepen
   ev('pointermove', grip, 50);    // tussen de eerste en tweede rij
   assert.equal(w.localStorage.getItem('spindash.cards'), null);
   ev('pointerup', d, 50);
-  assert.deepEqual(cardOrder(d), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'actR', 'actW', 'feed']);
-  assert.deepEqual([...d.querySelectorAll('#cardList li')].map((li) => li.dataset.card), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'actR', 'actW', 'feed']);
+  assert.deepEqual(cardOrder(d), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed']);
+  assert.deepEqual([...d.querySelectorAll('#cardList li')].map((li) => li.dataset.card), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed']);
   assert.ok(!d.querySelector('#cardList .dragging'));
-  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 2 van 9');
-  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.cards')).map((c) => c.id), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'actR', 'actW', 'feed']);
+  assert.equal(d.getElementById('cardLive').textContent, 'Gebeurtenissen: plaats 2 van 11');
+  assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.cards')).map((c) => c.id), ['kpi', 'events', 'lanes', 'days', 'hist', 'causes', 'src', 'actR', 'actW', 'rest', 'feed']);
   // de handgreep zit buiten het label: slepen zet het kaartje niet aan of uit
   assert.ok(!d.querySelector('#cardList li label .grip'));
   dom.window.close();
@@ -992,5 +996,77 @@ test('spin-ups per day shows every day with the selected period highlighted', as
   assert.ok(bars[bars.length - 1].classList.contains('in'));   // vandaag valt in de laatste 24 uur
   assert.ok(!bars[0].classList.contains('in'));
   assert.match(d.getElementById('daysNote').textContent, new RegExp(`^Laatste ${expect} dagen, gemiddeld `));
+  dom.window.close();
+});
+
+// ---------- review: kleine fixes, uurkaartje, per bron, draaiduur en rust ----------
+test('the previous-hour button reads "Vorig uur" in Dutch', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document;
+  d.querySelector('[data-range="h"]').click();
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(d.getElementById('prev').getAttribute('aria-label'), 'Vorig uur');
+  dom.window.close();
+});
+
+test('the reading and writing cards label processes and files', async () => {
+  const dom = await load(RW);
+  const d = dom.window.document;
+  assert.deepEqual([...d.querySelectorAll('#actWrites h4')].map(text), ['Processen', 'Bestanden']);
+  dom.window.close();
+});
+
+test('the feed merges repeats, names an unknown source and says it ignores the period', async () => {
+  const files = served({ [today]: [...RW[`days/${today}.csv`].trim().split('\n'),
+    `${ep(50)},activity,trunk,MODIFY,/mnt/trunk/appdata/x.log`,
+    `${ep(40)},who,container,plex,10,geschreven,/mnt/trunk2/appdata/plex/Logs/server.log`] });   // zelfde share-pad, andere schijf
+  const dom = await load(files);
+  const d = dom.window.document;
+  const items = [...d.querySelectorAll('#feed li')].map(text);
+  const plex = items.filter((x) => /server\.log/.test(x));
+  assert.equal(plex.length, 1, items.join('\n'));
+  assert.match(plex[0], /plex ×3 /);
+  assert.match(items.find((x) => /x\.log/.test(x)), /Onbekend/);
+  assert.equal(d.getElementById('feedNote').textContent, '');
+  d.querySelector('[data-range="h"]').click();          // een uur terug kan: daar is data
+  await new Promise((r) => setTimeout(r, 100));
+  d.getElementById('prev').click();
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(d.getElementById('feedNote').textContent, 'Altijd de nieuwste gebeurtenissen, welke periode je ook kiest.');
+  dom.window.close();
+});
+
+test('spin-ups by hour cover at least the last 7 days', async () => {
+  const spinsOnly = HISTORY.filter((l) => !/,who,/.test(l)).join('\n') + '\n';
+  const dom = await load({ ...byDay(HISTORY), 'spins.csv': spinsOnly });
+  const d = dom.window.document;
+  const n = [...d.querySelectorAll('#hist div')].reduce((x, b) => x + +b.getAttribute('aria-label').match(/: (\d+) spin-ups$/)[1], 0);
+  assert.equal(n, 4);                                  // ook de 3 van gisteren, niet alleen die van de laatste 24 uur
+  assert.match(d.getElementById('histNote').textContent, /^Spin-ups .+ – .+\. Drukste uur: /);
+  dom.window.close();
+});
+
+test('key figures count a pool spin-up once but spinning hours per drive', async () => {
+  const dom = await load(POOL);
+  const d = dom.window.document;
+  assert.equal(text(kpi(d, 'kpiUps').querySelector('.k-val')), '1');
+  assert.equal(text(kpi(d, 'kpiHours').querySelector('.k-val')), '2 u');   // trunk en trunk2 elk ongeveer een uur
+  dom.window.close();
+});
+
+test('spin duration and rest shows the median run, longest rest and quick wake-ups per lane', async () => {
+  const QUICK = served({ [today]: [
+    `${ep(300)},disk,sdd,trunk`, `${ep(300)},state,sdd,standby`,
+    `${ep(200)},spin,sdd,active`, `${ep(190)},spin,sdd,standby`,
+    `${ep(175)},spin,sdd,active`, `${ep(100)},spin,sdd,standby`,      // 15 min na standby weer wakker
+  ] });
+  const dom = await load(QUICK);
+  const d = dom.window.document;
+  const cells = [...d.querySelectorAll('#rest tbody tr[data-dev="sdd"] td')].map(text);
+  assert.equal(cells[0], 'trunk');
+  assert.equal(cells[1], '2');
+  assert.equal(cells[2], '43 min');                    // mediaan van 10 en 75 minuten
+  assert.equal(cells[4], '1');
+  assert.ok(d.querySelector('#rest tbody td.quick'));
   dom.window.close();
 });
