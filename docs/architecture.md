@@ -12,7 +12,8 @@
 │                                         shfs → via_user_share(): /proc/*/fd       │
 │                                                                                    │
 │  docker ── /events (start, die, health) ──► days/<day>.csv  (ctr)                  │
-│     └── /containers/json + /emhttp/shares.ini ──► /data/containers.json            │
+│     └── /containers/json + /emhttp/shares.ini + /emhttp/docker_icons.xml           │
+│         ──► /data/containers.json (mounts, compose project, icon per container)    │
 │                                                                                    │
 │  housekeeping ── prune_days() every 6 hours; migrate() and relabel_existing()      │
 │                  on start                                                          │
@@ -87,9 +88,12 @@ spin lines of every day, so the comparison needs no extra day files.
 *Paths per container* in Settings comes from `/data/containers.json`: the bind mounts of every
 container (Docker API) and, for `/mnt/user/<share>`, where the share lives according to Unraid's
 `shares.ini`. Whether a path is on an HDD follows from those settings and which disks and pools are
-rotational, never from looking at the disks (that would wake them). The `docker` thread also
+rotational, never from looking at the disks (that would wake them). The same endpoint also carries
+each container's icon URL from Unraid's `docker_icons.xml` (the custom icons users pick in the
+Unraid UI), which the *Events* table shows next to the process. The `docker` thread also
 follows Docker's event stream and writes `ctr` lines for start, die and health; container processes
-get a `proc` line with their fatrace name, so the feed and the profile can say "plex › Plex Media Scan".
+get a `proc` line with their fatrace name, so the feed, the profile and the *Process* column in
+Events can say "plex › Plex Media Scan".
 
 Below the spin-up analysis, *Reads per drive* and *Writes per drive* show per drive the top
 sources and files in that direction over the period (also without spin-ups), and a *Live activity* feed lists the most recent file

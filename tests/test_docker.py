@@ -170,6 +170,51 @@ def test_containers_json_endpoint_without_docker(sd):
     assert body == {"docker": False, "containers": []}
 
 
+# ---------- container-icoontjes uit docker_icons.xml ----------
+def test_container_icons_from_docker_icons_xml(sd):
+    (sd._tmp / "emhttp" / "docker_icons.xml").write_text(
+        '<Containers>\n'
+        '  <template Name="plex" Icon="https://icon.example/plex.png"/>\n'
+        '  <template Name="binhex-sonarr" Icon="/boot/dockicons/sonarr.png"/>\n'
+        '  <template Name="plex" Icon="https://later.example/dup.png"/>\n'   # dubbele: de eerste telt
+        '</Containers>\n')
+    assert sd.container_icons() == {"plex": "https://icon.example/plex.png",
+                                    "binhex-sonarr": "/boot/dockicons/sonarr.png"}
+
+
+def test_container_icons_without_the_file(sd):
+    assert sd.container_icons() == {}
+
+
+def test_containers_info_adds_the_icon_url(unraid, monkeypatch):
+    (sd._tmp / "emhttp" / "docker_icons.xml").write_text(
+        '<Containers><template Name="plex" Icon="https://icon.example/plex.png"/></Containers>\n')
+    fake = FakeDocker({"/containers/json": [
+        {"Names": ["/plex"], "State": "running", "Labels": {}, "Mounts": []},
+        {"Names": ["/radarr"], "State": "running", "Labels": {}, "Mounts": []}]})
+    try:
+        monkeypatch.setattr(unraid, "DOCKER_SOCK", fake.path)
+        body = unraid.containers_info(now=1000)
+    finally:
+        fake.close()
+    plex, radarr = body["containers"]
+    assert plex["icon"] == "https://icon.example/plex.png"
+    assert radarr["icon"] == ""
+
+
+def test_container_name_resolves_ids_in_bulk(sd, monkeypatch):
+    monkeypatch.setattr(sd, "names", {})
+    calls = []
+    monkeypatch.setattr(sd, "docker_get", lambda path, timeout=2: calls.append(path) or [
+        {"Id": "a" * 64, "Names": ["/plex"]}, {"Id": "b" * 64, "Names": ["/radarr"]}])
+    assert sd.container_name("a" * 64) == "plex"
+    assert sd.container_name("b" * 64) == "radarr"
+    assert calls == ["/containers/json?all=1"]            # beide namen in één aanroep
+    monkeypatch.setattr(sd, "names", {"c" * 64: "cached"})
+    assert sd.container_name("c" * 64) == "cached"
+    assert len(calls) == 1
+
+
 # ---------- oude data blijft geldig ----------
 def test_old_day_files_without_proc_or_ctr_lines_still_work(sd):
     """proc en ctr komen er alleen bij: oude dagbestanden hebben ze niet en hoeven niet omgezet."""

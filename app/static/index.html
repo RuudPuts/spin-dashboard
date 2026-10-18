@@ -185,6 +185,9 @@ dialog.settings::backdrop{background:rgba(10,15,20,.45)}
 .cause-row.unknown .cause-bar i{background:var(--idle)}
 .cause-row b{text-align:right;font-weight:600}
 td.cause{max-width:360px;overflow:hidden;text-overflow:ellipsis}
+td.proc{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proc-ic{width:18px;height:18px;border-radius:4px;vertical-align:-4px;margin-right:6px;object-fit:contain}
+.proc-ic[src=""],.proc-ic:not([src]){display:none}
 td.disks{white-space:normal;min-width:6rem;max-width:14rem}
 tr.has-sess{cursor:pointer}
 tr.has-sess:hover td{background:var(--bg)}
@@ -517,7 +520,7 @@ td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
       </div>
       <div class="tablewrap">
         <table>
-          <thead><tr><th data-i18n="thTime">Time</th><th data-i18n="thDisk">Drive</th><th data-i18n="thEvent">Event</th><th id="causeHead" data-i18n="thCause">Cause</th><th data-i18n="thDur">Lasted</th></tr></thead>
+          <thead><tr><th data-i18n="thTime">Time</th><th data-i18n="thDisk">Drive</th><th data-i18n="thEvent">Event</th><th id="procHead" data-i18n="thProc">Process</th><th id="causeHead" data-i18n="thCause">Cause</th><th data-i18n="thDur">Lasted</th></tr></thead>
           <tbody id="events"></tbody>
         </table>
       </div>
@@ -611,7 +614,7 @@ const I18N = {
     legSpin:'Spinning', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups per hour of day', causesTitle:'Spin-up causes per folder', eventsTitle:'Events',
     onlyUp:'Spin-ups only', devFilter:'Filter by drive', allDisks:'All drives',
-    thTime:'Time', thDisk:'Drive', thEvent:'Event', thCause:'Cause', thDur:'Lasted',
+    thTime:'Time', thDisk:'Drive', thEvent:'Event', thProc:'Process', thCause:'Cause', thDur:'Lasted',
     summary:'{n} drives, {from} to {to}', demo:'Sample data', live:'Live, updated {time}',
     laneAria:'{name}: {ups} spin-ups, {pct}% active', spinUps:'spin-ups', active:'active',
     histBar:'{from} to {to}: {n} spin-ups',
@@ -658,7 +661,7 @@ const I18N = {
     legSpin:'Draait', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups per uur van de dag', causesTitle:'Oorzaken van spin-ups per map', eventsTitle:'Gebeurtenissen',
     onlyUp:'Alleen spin-ups', devFilter:'Filter op schijf', allDisks:'Alle schijven',
-    thTime:'Tijdstip', thDisk:'Schijf', thEvent:'Gebeurtenis', thCause:'Oorzaak', thDur:'Duurde',
+    thTime:'Tijdstip', thDisk:'Schijf', thEvent:'Gebeurtenis', thProc:'Proces', thCause:'Oorzaak', thDur:'Duurde',
     summary:'{n} schijven, {from} tot {to}', demo:'Voorbeelddata', live:'Live, bijgewerkt {time}',
     laneAria:'{name}: {ups} spin-ups, {pct}% actief', spinUps:'spin-ups', active:'actief',
     histBar:'{from} tot {to}: {n} spin-ups',
@@ -705,7 +708,7 @@ const I18N = {
     legSpin:'En rotation', legIdle:'Veille', legUp:'Démarrage',
     histTitle:'Démarrages par heure de la journée', causesTitle:'Causes des démarrages par dossier', eventsTitle:'Événements',
     onlyUp:'Démarrages uniquement', devFilter:'Filtrer par disque', allDisks:'Tous les disques',
-    thTime:'Heure', thDisk:'Disque', thEvent:'Événement', thCause:'Cause', thDur:'Durée',
+    thTime:'Heure', thDisk:'Disque', thEvent:'Événement', thProc:'Processus', thCause:'Cause', thDur:'Durée',
     summary:'{n} disques, du {from} au {to}', demo:'Données d’exemple', live:'En direct, mis à jour à {time}',
     laneAria:'{name} : {ups} démarrages, {pct} % actif', spinUps:'démarrages', active:'actif',
     histBar:'{from} à {to} : {n} démarrages',
@@ -752,7 +755,7 @@ const I18N = {
     legSpin:'Läuft', legIdle:'Standby', legUp:'Spin-up',
     histTitle:'Spin-ups pro Tagesstunde', causesTitle:'Spin-up-Ursachen pro Ordner', eventsTitle:'Ereignisse',
     onlyUp:'Nur Spin-ups', devFilter:'Nach Festplatte filtern', allDisks:'Alle Festplatten',
-    thTime:'Zeitpunkt', thDisk:'Festplatte', thEvent:'Ereignis', thCause:'Ursache', thDur:'Dauer',
+    thTime:'Zeitpunkt', thDisk:'Festplatte', thEvent:'Ereignis', thProc:'Prozess', thCause:'Ursache', thDur:'Dauer',
     summary:'{n} Festplatten, {from} bis {to}', demo:'Beispieldaten', live:'Live, aktualisiert {time}',
     laneAria:'{name}: {ups} Spin-ups, {pct} % aktiv', spinUps:'Spin-ups', active:'aktiv',
     histBar:'{from} bis {to}: {n} Spin-ups',
@@ -799,7 +802,7 @@ const I18N = {
     legSpin:'Girando', legIdle:'Reposo', legUp:'Arranque',
     histTitle:'Arranques por hora del día', causesTitle:'Causas de arranque por carpeta', eventsTitle:'Eventos',
     onlyUp:'Solo arranques', devFilter:'Filtrar por disco', allDisks:'Todos los discos',
-    thTime:'Hora', thDisk:'Disco', thEvent:'Evento', thCause:'Causa', thDur:'Duró',
+    thTime:'Hora', thDisk:'Disco', thEvent:'Evento', thProc:'Proceso', thCause:'Causa', thDur:'Duró',
     summary:'{n} discos, del {from} al {to}', demo:'Datos de ejemplo', live:'En directo, actualizado {time}',
     laneAria:'{name}: {ups} arranques, {pct} % activo', spinUps:'arranques', active:'activo',
     histBar:'{from} a {to}: {n} arranques',
@@ -1247,6 +1250,23 @@ const whoLabel = w => w.name.replace(/ \(al gestopt\)$/, ' ' + t('stopped'));
 function whoBadge(w){
   if (!w) return `<span class="who none">${esc(t('kind_none'))}</span>`;
   return `<span class="who ${esc(w.kind)}" title="${esc(t('kind_' + w.kind))}, pid ${w.pid}">${esc(whoLabel(w))}</span>`;
+}
+
+// Container-icoontjes uit containers.json (docker_icons.xml van Unraid), alleen voor de weergave
+function iconFor(name){
+  if (!containers || containers.failed || !containers.docker) return null;
+  const c = (containers.containers || []).find(x => x.name === name);
+  return c && c.icon ? c.icon : null;
+}
+// De proceskolom in de gebeurtenistabel: welk proces (in een container) de toegang deed
+function procCell(cause){
+  if (!cause || !cause.first) return `<span class="muted">—</span>`;
+  const w = whoFor(cause.first);
+  if (!w) return `<span class="muted">${esc(t('kind_none'))}</span>`;
+  const label = whoLabel(w) + procSuffix(w);
+  const icon = w.kind === 'container' ? iconFor(w.name) : null;
+  const img = icon ? `<img class="proc-ic" src="${esc(icon)}" alt="" loading="lazy" onerror="this.remove()">` : '';
+  return `${img}<span title="${esc(label)}">${esc(label)}</span>`;
 }
 
 /* ---------- activiteit: inotify (activity-regels, oud) + fanotify (who-regels) samen ---------- */
@@ -1793,21 +1813,21 @@ async function fetchContainers(){
   if (txt === containersText) return false;
   try { containers = JSON.parse(txt); containersText = txt; return true; } catch (e) { return false; }
 }
-// voorbeeld: een paar typische Unraid-containers
+// voorbeeld: een paar typische Unraid-containers (met icoontje waar bekend)
 function demoContainers(){
   const sh = (share, storage, hdd, pool = 'cache') => ({kind: 'share', share, storage, pool, hdd});
   const m = (source, target, rw, where) => ({source, target, rw, where});
   return {docker: true, containers: [
-    {name: 'plex', state: 'running', mounts: [m('/mnt/user/appdata/plex', '/config', true, sh('appdata', 'pool>array', true)),
+    {name: 'plex', state: 'running', icon: 'https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/plex-logo.png', mounts: [m('/mnt/user/appdata/plex', '/config', true, sh('appdata', 'pool>array', true)),
                                               m('/mnt/user/Media', '/media', false, sh('Media', 'pool>array', true))]},
-    {name: 'sonarr', state: 'running', project: 'arr', mounts: [m('/mnt/user/appdata/sonarr', '/config', true, sh('appdata', 'pool>array', true)),
+    {name: 'sonarr', state: 'running', project: 'arr', icon: 'https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/sonarr-logo.png', mounts: [m('/mnt/user/appdata/sonarr', '/config', true, sh('appdata', 'pool>array', true)),
                                                 m('/mnt/user/Media', '/tv', true, sh('Media', 'pool>array', true))]},
-    {name: 'radarr', state: 'running', project: 'arr', mounts: [m('/mnt/disk1/appdata/radarr', '/config', true, {kind: 'disk', name: 'disk1', hdd: true}),
+    {name: 'radarr', state: 'running', project: 'arr', icon: 'https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/radarr-logo.png', mounts: [m('/mnt/disk1/appdata/radarr', '/config', true, {kind: 'disk', name: 'disk1', hdd: true}),
                                                 m('/mnt/user/Media', '/movies', true, sh('Media', 'pool>array', true))]},
-    {name: 'homeassistant', state: 'running', mounts: [m('/mnt/user/appdata/homeassistant', '/config', true, sh('appdata', 'pool>array', true))]},
-    {name: 'bazarr', state: 'running', project: 'arr', mounts: [m('/mnt/cache/appdata/bazarr', '/config', true, {kind: 'pool', name: 'cache', hdd: false}),
+    {name: 'homeassistant', state: 'running', icon: '', mounts: [m('/mnt/user/appdata/homeassistant', '/config', true, sh('appdata', 'pool>array', true))]},
+    {name: 'bazarr', state: 'running', project: 'arr', icon: 'https://raw.githubusercontent.com/linuxserver/docker-templates/master/linuxserver.io/img/bazarr-logo.png', mounts: [m('/mnt/cache/appdata/bazarr', '/config', true, {kind: 'pool', name: 'cache', hdd: false}),
                                                 m('/mnt/user/Media', '/media', false, sh('Media', 'pool>array', true))]},
-    {name: 'nginx', state: 'exited', mounts: [m('/mnt/cache/appdata/nginx', '/config', true, {kind: 'pool', name: 'cache', hdd: false})]},
+    {name: 'nginx', state: 'exited', icon: '', mounts: [m('/mnt/cache/appdata/nginx', '/config', true, {kind: 'pool', name: 'cache', hdd: false})]},
   ]};
 }
 // Instellingen › Paden per container: per container de mappings onder /mnt en waar ze staan
@@ -2146,6 +2166,7 @@ function renderEvents(a, b){
   rows.sort((p,q) => q.t - p.t);
   const groups = f ? rows.map(r => ({st:r.st, anchor:r.t, items:[r]})) : groupRows(rows);
   $('causeHead').hidden = !hasAct();
+  $('procHead').hidden = !hasAct();
   $('events').innerHTML = groups.slice(0,300).map(g => {
     const items = g.items.slice().sort((p,q) => devOrder(p.dev, q.dev));
     const t0 = Math.min(...items.map(r => r.t));
@@ -2160,10 +2181,10 @@ function renderEvents(a, b){
       <td>${fmtFull.format(t0)}</td>
       <td class="disks">${items.map(r => esc(nameOf(r.dev))).join(', ')}</td>
       <td><span class="dot ${g.st}"></span>${esc(t(g.st === 'up' ? 'spunUp' : 'toStandby'))}${g.st === 'up' && inQuiet(t0) && items.some(r => quietApplies(r.dev)) ? `<span class="quiet-tag">${esc(t('quietTag'))}</span>` : ''}${toggle}</td>
-      ${hasAct() ? `<td class="cause" title="${esc(cause.title)}">${cause.html}</td>` : ''}
+      ${hasAct() ? `<td class="proc">${procCell(cause)}</td><td class="cause" title="${esc(cause.title)}">${cause.html}</td>` : ''}
       <td class="muted">${durText(items)}</td></tr>` +
       (open ? sessionRow(files, t0) : '');
-  }).join('') || `<tr><td colspan="5" class="muted">${esc(t('noEvents'))}</td></tr>`;
+  }).join('') || `<tr><td colspan="6" class="muted">${esc(t('noEvents'))}</td></tr>`;
 }
 
 const expanded = new Set();
@@ -2179,7 +2200,7 @@ function sessionRow(files, t0){
       <span class="path" title="${esc(e.path)}">${esc(relPath(e))}</span></li>`).join('');
   const more = list.length > max ? `<p class="muted">${esc(t('andMore', {n: list.length - max}))}</p>` : '';
   const note = !shown.length ? `<p class="muted">${esc(t('onlyDirs'))}</p>` : '';
-  return `<tr class="sess-row"><td colspan="5">${note}<ol class="files">${rows}</ol>${more}</td></tr>`;
+  return `<tr class="sess-row"><td colspan="6">${note}<ol class="files">${rows}</ol>${more}</td></tr>`;
 }
 $('events').addEventListener('click', e => {
   const tr = e.target.closest('tr.has-sess'); if (!tr) return;

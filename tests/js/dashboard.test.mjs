@@ -1200,6 +1200,35 @@ test('the process inside a container shows in the feed and the profile', async (
   dom.window.close();
 });
 
+test('the events table shows the process column with the container name, icon and process', async () => {
+  const containers = { docker: true, containers: [
+    { name: 'plex', state: 'running', icon: 'https://icon.example/plex.png', mounts: [] },
+    { name: 'radarr', state: 'running', icon: '', mounts: [] },
+  ] };
+  const dom = await load({ ...DOCK, 'containers.json': JSON.stringify(containers) });
+  const d = dom.window.document;
+  const ups = rows(d).filter((x) => /Opgespind/.test(x));
+  // de eerste spin-up (2u geleden) heeft een cause: plex met de scanner
+  const first = ups.find((x) => /Media\/films gelezen: b\.mkv/.test(x));
+  assert.ok(first, ups.join('\n'));
+  assert.match(first, /plex/);
+  // de spin-up van 36 minuten geleden heeft geen bestandsactiviteit, dus geen proces
+  const noAct = ups.find((x) => /Geen bestandsactiviteit/.test(x));
+  assert.ok(noAct, ups.join('\n'));
+  assert.match(noAct, /—/);
+  // het icoontje van plex staat er (jsdom laadt geen plaatjes, dus alleen de HTML-check)
+  const html = d.getElementById('events').innerHTML;
+  assert.ok(html.includes('proc'), `proc column in HTML: ${html.includes('class="proc"')}`);
+  // zonder containers.json: geen icoontje, wel de naam
+  dom.window.close();
+  const plain = await load(DOCK);
+  const rowsPlain = rows(plain.window.document);
+  const up2 = rowsPlain.find((x) => /Opgespind/.test(x) && /plex/.test(x));
+  assert.match(up2, /plex/);
+  assert.equal(plain.window.document.querySelectorAll('#events .proc-ic').length, 0);
+  plain.window.close();
+});
+
 test('a streamed proc line names the process of the who line after it', async () => {
   const dom = await loadWithStream(DOCK);
   const w = dom.window, n = Math.floor(Date.now() / 1000);

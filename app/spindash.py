@@ -57,6 +57,8 @@ SYS_BLOCK = "/sys/block"
 MOUNTS_FILE = "/proc/self/mounts"
 USER_SHARES = "/mnt/user"
 DOCKER_SOCK = "/var/run/docker.sock"
+# docker.icons.xml van de host (Community Applications): URL's van de zelfgekozen container-icoontjes
+DOCKER_ICONS = os.path.join(EMHTTP, "docker_icons.xml")
 
 DAYS = os.path.join(DATA, "days")
 LEGACY = os.path.join(DATA, "legacy")
@@ -536,13 +538,22 @@ def docker_get(path, timeout=2):
         return None
 
 
+def container_names():
+    """{id-prefix: naam} van alle containers via de Docker-API (één GET), of {} zonder socket."""
+    out = {}
+    for c in docker_get("/containers/json?all=1") or []:
+        cid = c.get("Id") or ""
+        name = ((c.get("Names") or [""])[0]).lstrip("/")
+        if cid and name:
+            out[cid] = name
+    return out
+
+
 def container_name(cid):
     if cid in names:
         return names[cid]
-    info = docker_get(f"/containers/{cid}/json")
-    name = (info or {}).get("Name", "").lstrip("/") or cid[:12]
-    names[cid] = name
-    return name
+    names.update(container_names())
+    return names.get(cid) or cid[:12]
 
 
 def classify(pid, comm, now=None):
@@ -946,6 +957,22 @@ def volume_devices():
     return out
 
 
+def container_icons():
+    """{containernaam: icoontje-URL} uit Unraids docker_icons.xml (tmpfs onder /emhttp, wekt niets).
+
+    Unraid bewaart de zelfgekozen icoontjes alleen in de browser (localStorage dockerUsedIcons);
+    deze lijst staat op de host in /boot/config/docker_icons.xml en hangt onder /emhttp."""
+    out = {}
+    try:
+        xml = open(DOCKER_ICONS, encoding="utf-8", errors="replace").read()
+    except OSError:
+        return out
+    for name, icon in re.findall(r"<template\s+Name=\"([^\"]+)\"\s+Icon=\"([^\"]+)\"", xml):
+        if icon and name not in out:
+            out[name] = icon
+    return out
+
+
 _containers_cache = {"t": 0.0, "body": None}
 
 
@@ -956,6 +983,7 @@ def containers_info(now=None):
     if _containers_cache["body"] is not None and now - _containers_cache["t"] < 30:
         return _containers_cache["body"]
     shares = read_shares_ini()
+    icons = container_icons()
     hdd_bases = {b for b in map(mount_base, hdd_devices().values()) if b}
     vols = volume_devices()
     out = []
@@ -976,6 +1004,7 @@ def containers_info(now=None):
                 mounts.append(entry)
         out.append({"name": name, "state": c.get("State") or "",
                     "project": (c.get("Labels") or {}).get("com.docker.compose.project") or "",
+                    "icon": icons.get(name) or "",
                     "mounts": mounts})
     body = {"docker": os.path.exists(DOCKER_SOCK), "containers": sorted(out, key=lambda x: x["name"].lower())}
     _containers_cache.update(t=now, body=body)
