@@ -32,7 +32,9 @@ jobs:
 
   image:
     needs: test
-    # alleen op main, tags en bij een geopende PR een image bouwen (PR's krijgen een pr-<n>-tag)
+    # op main, tags, bij een geopende PR (pr-<n>-tag) en op een push naar een feature-branch (branch-tag)
+    # Let op: bij een PR uit een fork kan GITHUB_TOKEN niet naar ghcr.io van de upstream schrijven;
+    # bouw dan op de fork zelf (daar werkt de branch-tag wel).
     if: github.event_name != 'pull_request' || github.event.action == 'opened' || github.event.action == 'reopened'
     runs-on: ubuntu-latest
     steps:
@@ -50,7 +52,8 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
-            type=sha,format=short,enable=${{ github.event_name != 'pull_request' }}
+            type=sha,format=short
+            type=ref,event=branch
             type=raw,value=pr-${{ github.event.pull_request.number }},enable=${{ github.event_name == 'pull_request' }}
       - uses: docker/build-push-action@v6
         with:
