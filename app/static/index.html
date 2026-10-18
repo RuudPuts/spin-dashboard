@@ -1965,7 +1965,7 @@ addEventListener('resize', () => {
 function demoLog(){
   const lines = [];
   const add = (t, l) => lines.push({t, l:`${Math.floor(t/1000)},${l}`});
-  const end = Date.now(), start = end - 6*DAY;
+  const end = Date.now(), start = end - 15*DAY;   // ruim twee weken: ook de weekweergave heeft een vorige week
   const disks = {sdb:['parity',.1], sdc:['disk1',1], sdd:['disk2',.8], sde:['disk3',.4], sdf:['disk4',.15], sdg:['disk5',.6]};
   let seed = 7; const rnd = () => (seed = (seed*16807) % 2147483647) / 2147483647;
   const pick = arr => arr[Math.floor(rnd()*arr.length)];

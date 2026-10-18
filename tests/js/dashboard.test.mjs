@@ -1070,3 +1070,13 @@ test('spin duration and rest shows the median run, longest rest and quick wake-u
   assert.ok(d.querySelector('#rest tbody td.quick'));
   dom.window.close();
 });
+
+test('demo data is long enough to compare a week with the week before', async () => {
+  const dom = await load({}, 'http://dash/?demo&lang=nl');
+  const d = dom.window.document;
+  d.querySelector('[data-range="7"]').click();
+  await new Promise((r) => setTimeout(r, 100));
+  assert.equal(d.getElementById('kpiNote').textContent, '');
+  assert.match(text(kpi(d, 'kpiUps').querySelector('.k-cmp')), /Vorige week: \d+$/);
+  dom.window.close();
+});

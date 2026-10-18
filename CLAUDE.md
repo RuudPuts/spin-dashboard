@@ -16,6 +16,7 @@ Unraid server spin up and **why**: which file was opened and by which process
 | `app/static/index.html` | The dashboard. A single file, vanilla JS, no build step. |
 | `tests/` | `pytest` for the backend, `tests/js/` for the frontend (node:test + jsdom). |
 | `unraid/` | Community Applications template and icon. |
+| `scripts/screenshots.mjs` | Recreates the README screenshots from the sample data (Playwright, not in `package.json`). |
 | `docs/` | Architecture, data formats, development, publishing, design decisions. |
 | `todo.md` / `completed.md` | Open and finished work. Update them when you pick something up or finish it. |
 
@@ -55,6 +56,10 @@ then builds the image.
   Times in epoch seconds; the day is the container's local date. The frontend shows local time.
 - Small, focused changes. New logic gets a test.
 - Frontend: no frameworks, no external assets except Google Fonts with a fallback.
+- **README screenshots must always match the current dashboard.** Any change that is visible in
+  the UI (cards added, removed, renamed or rearranged, new layout) refreshes the screenshots in
+  `docs/images/` and their alt texts in the README in the same commit, with
+  `node scripts/screenshots.mjs` (see `docs/development.md`).
 
 ## Pitfalls we already ran into
 

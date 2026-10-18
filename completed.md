@@ -2,6 +2,11 @@
 
 Newest first.
 
+## 2026-10-18: README screenshots up to date
+- New screenshots of the current dashboard (sample data, 7 days, light and dark), including Key figures, Spin-ups per day, By source and Spin duration and rest; the detail screenshot now shows the reading/writing cards, Spin duration and rest and Live activity
+- `scripts/screenshots.mjs` recreates them with Playwright; `CLAUDE.md` now requires the screenshots to match the UI in the same commit as any visible change
+- The sample data covers 15 days instead of 6, so the week view can compare with the previous week
+
 ## 2026-10-18: card review
 - New card By source: containers and processes ranked by the spin-ups they caused, with reads, writes and the drives they touched; "By whom" moved here from What wakes the drives
 - New card Spin duration and rest: per lane the median run after a spin-up, the longest rest and "woke quickly" (spun up within 30 minutes of going to standby)

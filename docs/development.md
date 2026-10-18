@@ -55,6 +55,22 @@ shown under the field.
 A pattern with a leading `/` matches the full path and its `/mnt/user/...` form; without it, the path inside
 the share. Hidden activity is filtered out after loading (`data.allAct` → `data.act`), also for live events.
 
+## README screenshots
+
+The screenshots in `docs/images/` must always match the current dashboard (see `CLAUDE.md`). They are
+made from the sample data (`?demo`, English, the 7-day view) at 1200 px wide and 2× scale, in light and
+dark, with `scripts/screenshots.mjs`:
+
+```bash
+npm install --no-save playwright && npx playwright install chromium
+node scripts/screenshots.mjs
+```
+
+It writes `screenshot-light.png` / `screenshot-dark.png` (the whole page) and
+`active-drives-live-activity-light.png` / `active-drives-live-activity.png` (the reading, writing, spin
+duration and live activity cards). Playwright is deliberately not in `package.json`, so CI and a normal
+`npm install` do not need it. Check the new images before committing and update the alt texts in the README.
+
 ## Testing on Unraid
 
 ```bash
