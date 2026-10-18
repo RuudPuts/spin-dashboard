@@ -35,6 +35,7 @@ Newest first.
 
 ## 2026-10-18: validated on a real server (Unraid 7.3.3)
 - `ctr` lines arrive from Docker's event stream (start, die with exit code 137, healthy); `shares.ini` uses `useCache`/`cachePool`/`cachePool2` as expected
+- `proc` lines work: Plex opening an episode on the HDD pool is logged as `proc,<pid>,Plex Transcoder` right before its `who` line
 - Fixed: containers that use named Compose volumes binding a folder (`o=bind`, `device=/mnt/...`) were missing from Paths per container; such a volume now counts as its folder
 - Fixed: a client that hangs up (the healthcheck) no longer prints a traceback in the log
 
