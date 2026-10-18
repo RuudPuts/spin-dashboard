@@ -27,6 +27,7 @@ import re
 import shutil
 import socket
 import subprocess
+import sys
 import threading
 import time
 import urllib.parse
@@ -825,6 +826,18 @@ def locate(src, shares, hdd_bases):
     return {"kind": kind, "name": top, "hdd": top in hdd_bases}
 
 
+def volume_devices():
+    """{volumenaam: map} voor lokale volumes die een map binden (driver_opts o=bind, device=/mnt/...).
+    Docker toont bij zo'n volume /var/lib/docker/volumes/<naam>/_data als bron; de echte map staat
+    in de opties van het volume."""
+    out = {}
+    for v in (docker_get("/volumes") or {}).get("Volumes") or []:
+        opts = v.get("Options") or {}
+        if v.get("Driver") == "local" and "bind" in (opts.get("o") or "").split(",") and opts.get("device"):
+            out[v.get("Name")] = opts["device"]
+    return out
+
+
 _containers_cache = {"t": 0.0, "body": None}
 
 
@@ -836,6 +849,7 @@ def containers_info(now=None):
         return _containers_cache["body"]
     shares = read_shares_ini()
     hdd_bases = {b for b in map(mount_base, hdd_devices().values()) if b}
+    vols = volume_devices()
     out = []
     for c in docker_get("/containers/json?all=1") or []:
         name = ((c.get("Names") or [""])[0]).lstrip("/")
@@ -843,10 +857,15 @@ def containers_info(now=None):
             continue
         mounts = []
         for m in c.get("Mounts") or []:
-            where = locate(m.get("Source") or "", shares, hdd_bases)
+            src = m.get("Source") or ""
+            if m.get("Type") == "volume" and m.get("Name") in vols:
+                src = vols[m["Name"]]            # benoemd volume dat naar een map onder /mnt wijst
+            where = locate(src, shares, hdd_bases)
             if where:
-                mounts.append({"source": m.get("Source"), "target": m.get("Destination"),
-                               "rw": bool(m.get("RW", True)), "where": where})
+                entry = {"source": src, "target": m.get("Destination"), "rw": bool(m.get("RW", True)), "where": where}
+                if m.get("Type") == "volume":
+                    entry["volume"] = m.get("Name")
+                mounts.append(entry)
         out.append({"name": name, "state": c.get("State") or "",
                     "project": (c.get("Labels") or {}).get("com.docker.compose.project") or "",
                     "mounts": mounts})
@@ -1234,8 +1253,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
+class Server(http.server.ThreadingHTTPServer):
+    def handle_error(self, request, client_address):
+        """Een client die de verbinding verbreekt (healthcheck, browser die wegnavigeert) is geen fout:
+        geen traceback in de log. Andere fouten wel."""
+        if isinstance(sys.exc_info()[1], (ConnectionResetError, BrokenPipeError)):
+            return
+        super().handle_error(request, client_address)
+
+
 def web():
-    srv = http.server.ThreadingHTTPServer(("", PORT), partial(Handler, directory=STATIC))
+    srv = Server(("", PORT), partial(Handler, directory=STATIC))
     log(f"Dashboard on port {PORT}")
     srv.serve_forever()
 

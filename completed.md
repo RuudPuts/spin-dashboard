@@ -2,6 +2,11 @@
 
 Newest first.
 
+## 2026-10-18: validated on a real server (Unraid 7.3.3)
+- `ctr` lines arrive from Docker's event stream (start, die with exit code 137, healthy); `shares.ini` uses `useCache`/`cachePool`/`cachePool2` as expected
+- Fixed: containers that use named Compose volumes binding a folder (`o=bind`, `device=/mnt/...`) were missing from Paths per container; such a volume now counts as its folder
+- Fixed: a client that hangs up (the healthcheck) no longer prints a traceback in the log
+
 ## 2026-10-18: card size and position in Settings
 - Every card can be small (half width) or large in Settings › Cards; the choice is saved with the layout (`size` in `spindash.cards`, older layouts keep the default sizes) and reset by "Restore default layout"
 - Each card shows where it lands on a wide screen with a small icon (whole width, left, right); two small cards side by side are connected in the list, and clicking the icon swaps them, also across a hidden card in between

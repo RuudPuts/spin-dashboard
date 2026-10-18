@@ -146,7 +146,7 @@ def test_containers_info_lists_mounts_under_mnt(unraid, monkeypatch):
         monkeypatch.setattr(unraid, "DOCKER_SOCK", fake.path)
         body = unraid.containers_info(now=1000)
         assert unraid.containers_info(now=1010) is body              # 30 s gecachet
-        assert len(fake.requests) == 1
+        assert sorted(r.split('?')[0] for r in fake.requests) == ['/containers/json', '/volumes']   # één verversing
     finally:
         fake.close()
     assert body["docker"] is True
@@ -180,3 +180,42 @@ def test_old_day_files_without_proc_or_ctr_lines_still_work(sd):
     assert sd.spins_body()[0].decode().splitlines() == [
         "1791410400,disk,sdd,trunk", "1791410400,state,sdd,standby", "1791420010,spin,sdd,active"]
     assert sd.days_index()["days"] == ["2026-10-08"]
+
+
+def test_named_volumes_that_bind_a_folder_count_as_that_folder(unraid, monkeypatch):
+    """Zoals op een echte server: compose-volumes met driver_opts type=none, o=bind, device=/mnt/..."""
+    fake = FakeDocker({
+        "/containers/json": [{"Names": ["/plex"], "State": "running", "Mounts": [
+            {"Type": "volume", "Name": "appdata", "Source": "/var/lib/docker/volumes/appdata/_data", "Destination": "/config", "RW": True},
+            {"Type": "volume", "Name": "media", "Source": "/var/lib/docker/volumes/media/_data", "Destination": "/media", "RW": True},
+            {"Type": "volume", "Name": "cache", "Source": "/var/lib/docker/volumes/cache/_data", "Destination": "/cache", "RW": True}]}],
+        "/volumes": {"Volumes": [
+            {"Name": "appdata", "Driver": "local", "Options": {"device": "/mnt/cache/appdata", "o": "bind", "type": "none"}},
+            {"Name": "media", "Driver": "local", "Options": {"device": "/mnt/trunk/Media", "o": "bind,ro", "type": "none"}},
+            {"Name": "cache", "Driver": "local", "Options": None}]},       # gewoon volume: valt weg
+    })
+    try:
+        monkeypatch.setattr(unraid, "DOCKER_SOCK", fake.path)
+        plex = unraid.containers_info(now=1)["containers"][0]
+    finally:
+        fake.close()
+    assert [(m["volume"], m["source"], m["where"]["hdd"]) for m in plex["mounts"]] == [
+        ("appdata", "/mnt/cache/appdata", False), ("media", "/mnt/trunk/Media", True)]
+
+
+def test_a_client_that_hangs_up_leaves_no_traceback(sd, capsys):
+    srv = sd.Server(("127.0.0.1", 0), sd.Handler)
+    try:
+        for exc in (ConnectionResetError(104, "reset"), BrokenPipeError(32, "pipe")):
+            try:
+                raise exc
+            except OSError:
+                srv.handle_error(None, ("127.0.0.1", 1))
+        assert capsys.readouterr().err == ""
+        try:
+            raise ValueError("echt stuk")
+        except ValueError:
+            srv.handle_error(None, ("127.0.0.1", 1))
+        assert "ValueError: echt stuk" in capsys.readouterr().err
+    finally:
+        srv.server_close()
