@@ -127,3 +127,16 @@ I/O is charged to `shfs`, not to the container. With the usual Unraid setup (eve
 containers that map `/mnt/diskN` or a pool directly would get real numbers. Until there is a way to
 attribute `shfs` I/O, counts of accesses (after dedup) are the honest measure.
 
+## Quiet hours notify through a webhook, not Unraid's notifications
+Unraid's own notifications are sent by a script on the host (`/usr/local/emhttp/webGui/scripts/notify`).
+The container cannot run it without stepping outside what it is allowed to do, and writing into
+`/var/local/emhttp` would break the read-only mount. A webhook works with what people already use
+(ntfy, Gotify, Discord, Slack, Home Assistant) and needs only `urllib`. The JSON carries the same
+sentence as `text` and `content`, so most receivers need no template.
+
+Like every setting, the webhook can be changed by anyone who can reach the dashboard; the server then
+POSTs fixed JSON to that URL on a spin-up in quiet hours or on "Send a test". That is the same trust
+model as the rest of the dashboard (meant for the local network, no login); put it behind the
+reverse proxy's authentication when it is reachable from outside. The test endpoint only uses the
+saved URL, never one from the request.
+

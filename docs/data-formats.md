@@ -78,8 +78,9 @@ used; health checks (`exec_*`) and other event types are skipped.
 | `/data/days/YYYY-MM-DD.csv` | One day file, gzip-compressed when the browser sends `Accept-Encoding: gzip` (about 8× smaller on real data). Each response has an `ETag`; a request with a matching `If-None-Match` gets a `304` without a body. Any other path under `/data/` returns 404. |
 | `/data/spins.csv` | Only the `disk`, `state` and `spin` lines of every day file, days in ascending order, same line format. A few KB per day instead of megabytes, so the frontend can compute key figures, the comparison with the previous period and the spin-ups-per-day trend over all days without fetching every day file. Gzip and `ETag`/`304` like the day files; the ETag changes when any day file changes. Older servers return 404; the frontend then uses the days it has loaded. |
 | `/data/containers.json` | Per container the bind mounts under `/mnt` and where they live: `{"docker": true, "containers": [{"name": "plex", "state": "running", "project": "", "mounts": [{"source": "/mnt/user/appdata/plex", "target": "/config", "rw": true, "where": {"kind": "share", "share": "appdata", "storage": "pool>array", "pool": "cache", "hdd": true}}]}]}`. `where.kind` is `share` (`/mnt/user/<share>`, with `storage` from Unraid's `shares.ini`: `pool`, `array`, `pool>array` (the mover moves it to the array), `array>pool` or `unknown`), `user` (all of `/mnt/user`), `disk` (`/mnt/diskN`) or `pool` (`/mnt/<pool>`), with `name`. `hdd` is `true`, `false` or `null` (unknown), from the share settings and which disks and pools are rotational, never from looking at the disks. A named local volume that binds a folder (`driver_opts: {type: none, o: bind, device: /mnt/...}`, common with Compose) counts as that folder: `source` is the volume's `device` and the entry gets `"volume": "<name>"`. Other volumes are skipped. `project` is the Docker Compose project label, empty without Compose. Live, not stored; asked from Docker at most every 30 s. Without a Docker socket: `{"docker": false, "containers": []}`. |
+| `/data/notify-test` | `POST` (JSON, body ignored) sends a test message to the saved webhook. `200 {"ok": true, "status": 200}`, `400` without a saved webhook, `502` with `{"ok": false, "error": "..."}` when the webhook cannot be reached. It never takes a URL from the request. |
 | `/health` | `{"ok": true, "uptime": 560, "poller": {"last_success": 60, "error": null}, "watcher": {"mounts": ["/mnt/trunk"], "fatrace": 1}, "docker": "connected", "threads": {"poller": true, ...}}`, status `200`, or `503` with `"ok": false` when the poller has not succeeded for `3 × POLL_INTERVAL + 60` seconds or a background thread stopped. Missing `fatrace` processes or Docker socket (`"docker": "no socket"`) are reported but keep it healthy, so an auto-heal container does not restart it forever. Used by the Docker `HEALTHCHECK`. |
-| `/data/settings.json` | Dashboard settings shared by every browser. `GET` returns `{"hide": ["/mnt/user/appdata/*", "*.log"]}`, or `{}` when nothing has been saved yet (the frontend then moves its old `spindash.hide` list from `localStorage` to the server once). `POST` with `Content-Type: application/json` and a JSON object saves it and returns what was stored. Only known keys are kept (unknown ones are ignored, so older and newer frontends can share the file). `hide`: a list of at most 200 strings of at most 500 characters without control characters; whitespace is trimmed, empty and duplicate entries are dropped. Invalid input returns `400` with `{"error": "..."}`, another content type `415`, a body over 64 KiB `413`. |
+| `/data/settings.json` | Dashboard settings shared by every browser. `GET` returns `{"hide": ["/mnt/user/appdata/*", "*.log"]}`, or `{}` when nothing has been saved yet (the frontend then moves its old `spindash.hide` list from `localStorage` to the server once). `POST` with `Content-Type: application/json` and a JSON object saves it and returns what was stored. Only known keys are kept (unknown ones are ignored, so older and newer frontends can share the file). `hide`: a list of at most 200 strings of at most 500 characters without control characters; whitespace is trimmed, empty and duplicate entries are dropped. `quiet` and `webhook`: see "Settings file" below. Invalid input returns `400` with `{"error": "..."}`, another content type `415`, a body over 64 KiB `413`. |
 | `/data/stream` | Server-Sent Events. Every `who` line is pushed the moment it is logged (`data: <line>`), with a `: ping` every 30 s to keep the connection alive. Powers the live feed; the day files stay the source of truth. |
 
 ## CSV export
@@ -100,11 +101,28 @@ every UI language:
 
 ## Settings file
 
-`DATA_DIR/spindash-settings.json` holds what `/data/settings.json` returns: a JSON object, today only
-`{"hide": [...]}` (hidden-path patterns, see `docs/development.md`). It is written atomically (via
-`spindash-settings.json.tmp`) and both names are skipped by the watcher, like the day files. A missing
-or unreadable file counts as "nothing saved". New keys may be added later; readers ignore keys they
-do not know.
+`DATA_DIR/spindash-settings.json` holds what `/data/settings.json` returns: a JSON object with
+`hide` (hidden-path patterns, see `docs/development.md`), `quiet` and `webhook`:
+
+```json
+{"hide": ["/mnt/user/appdata/*"],
+ "quiet": {"from": "23:00", "to": "07:00", "drives": ["trunk"]},
+ "webhook": "https://ntfy.sh/my-topic"}
+```
+
+`quiet` is `null` (off) or the window in local time (`from` and `to` as `HH:MM`, different; a window
+like 23:00–07:00 runs over midnight) with `drives`: lane keys as the frontend uses them (`array` for
+parity and `diskN`, the pool name for a pool and its members), empty for all drives. `webhook` is empty
+or an `http(s)` URL of at most 500 characters. When a drive in `drives` spins up inside the window, the
+poller POSTs to the webhook (at most once per lane per 10 minutes):
+`{"event": "spin-up", "lane": "trunk", "devices": ["sdd", "sde"], "epoch": 1791511200,
+"time": "2026-10-09T02:00:00", "text": "...", "content": "..."}`; `text` and `content` hold the same
+sentence, so ntfy, Gotify, Slack and Discord work without configuration.
+
+The file is written atomically (via `spindash-settings.json.tmp`) and both names are skipped by the
+watcher, like the day files. A missing or unreadable file counts as "nothing saved"; a key with an
+invalid value is dropped on reading, the other keys are kept. New keys may be added later; readers
+ignore keys they do not know.
 
 ## Retention
 
@@ -133,3 +151,4 @@ and counted in the log; they stay in `legacy/`.
 |---|---|---|
 | October 2026 | Separate files (`spin.csv`, `disks.csv`, `who.csv`, `activity.csv`) → day files | `migrate()`, see above. |
 | 2026-10-18 | New line types `proc` and `ctr` | None needed: purely additive. Older day files simply have no `proc` or `ctr` lines, and the frontend then shows the container name without a process and no start/stop markers. The history cannot be filled in afterwards: the process names and Docker events of the past were never recorded. Older frontends ignore unknown line types. Tested by `test_old_day_files_without_proc_or_ctr_lines_still_work` and the frontend test for a container without a `proc` line. |
+| 2026-10-18 | New keys `quiet` and `webhook` in `spindash-settings.json` | None needed: purely additive. An older settings file has only `hide`, which reads as "no quiet hours, no webhook". Older versions ignore the new keys. Tested by `test_an_invalid_key_in_the_file_does_not_drop_the_others` and the existing settings tests. |

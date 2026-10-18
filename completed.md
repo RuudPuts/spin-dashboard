@@ -2,6 +2,11 @@
 
 Newest first.
 
+## 2026-10-18: quiet hours
+- Settings › Quiet hours: a window (may run over midnight) for all drives or chosen pools / the array, saved on the server (`quiet` in the settings file). The timeline per drive shades it and spin-ups inside it get a "quiet hours" label in Events
+- Optional webhook: the poller POSTs a JSON message on a spin-up in quiet hours (at most once per lane per 10 minutes, in its own thread), with a "Send a test" button (`/data/notify-test`). Unraid's own notifications are not used, see `docs/decisions.md`
+- Additive change to the settings file, recorded under "Migrations by change"
+
 ## 2026-10-18: Compose projects as one source
 - Settings › Drives has a switch to count the containers of one Docker Compose project as one source (off by default, remembered in `spindash.group`): the source cards and the profile then show the project with a "stack" label, its containers in the tooltip, and the start/stop events of all its containers. The live feed stays per container
 

@@ -31,6 +31,7 @@ import sys
 import threading
 import time
 import urllib.parse
+import urllib.request
 from datetime import datetime
 from functools import partial
 
@@ -310,7 +311,7 @@ def poll_once(last, now=None):
     lines = []
     if new_day or devs != last.get("disks"):
         lines += [f"{now},disk,{d},{n}" for d, n in sorted(devs.items())]
-    n = 0
+    n, ups = 0, []
     for dev in sorted(devs):
         st = drive_state(dev)
         if not st:
@@ -318,6 +319,8 @@ def poll_once(last, now=None):
         if dev in known and st != known[dev]:
             lines.append(f"{now},spin,{dev},{st}")
             n += 1
+            if st == "active":
+                ups.append((dev, devs[dev]))
         elif dev not in known or new_day:
             lines.append(f"{now},state,{dev},{st}")
             n += 1
@@ -325,9 +328,79 @@ def poll_once(last, now=None):
     last["day"], last["disks"] = day, dict(devs)
     if lines:
         append_lines(lines)
+    if ups:
+        try:
+            notify_spinups(now, ups)
+        except Exception as e:                  # een melding mag de peiling nooit breken
+            log("notify failed:", repr(e))
     if not devs:
         log("No HDDs found. Is /var/local/emhttp mounted and is the container privileged?")
     return n
+
+
+# =====================================================================================
+# Stille uren: een spin-up binnen het ingestelde venster meldt de poller via een webhook
+# =====================================================================================
+NOTIFY_GAP = 600       # hooguit één melding per baan per 10 minuten (poolleden spinnen samen op)
+notified = {}
+
+
+def lane_key(name):
+    """Baansleutel zoals de frontend: parity en diskN horen bij de array, poolleden bij hun pool."""
+    return "array" if re.fullmatch(r"parity\d*|disk\d+", name) else re.sub(r"\d+$", "", name)
+
+
+def in_quiet(ts, quiet):
+    """Valt `ts` (epoch, lokale tijd) binnen de stille uren? Een venster als 23:00-07:00 loopt over middernacht."""
+    if not quiet:
+        return False
+    lt = time.localtime(ts)
+    m = lt.tm_hour * 60 + lt.tm_min
+    f, t = (int(x[:2]) * 60 + int(x[3:]) for x in (quiet["from"], quiet["to"]))
+    return f <= m < t if f < t else (m >= f or m < t)
+
+
+def send_webhook(url, payload, timeout=10):
+    """JSON naar de webhook. `text` (Slack, ntfy, Gotify) en `content` (Discord) bevatten dezelfde zin."""
+    req = urllib.request.Request(url, data=json.dumps(payload).encode(), method="POST",
+                                 headers={"Content-Type": "application/json", "User-Agent": "spin-dashboard"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.status
+
+
+def notify_spinups(now, ups, send=None):
+    """Spin-ups [(device, naam)] van één peiling melden als ze in de stille uren vallen en hun baan
+    meedoet. Versturen gebeurt in een eigen thread, zodat de poller niet wacht op het netwerk."""
+    st = read_settings()
+    quiet, url = st.get("quiet"), st.get("webhook")
+    if not ups or not url or not in_quiet(now, quiet):
+        return []
+    lanes = {}
+    for dev, name in ups:
+        k = lane_key(name)
+        if not quiet["drives"] or k in quiet["drives"]:
+            lanes.setdefault(k, []).append(dev)
+    sent = []
+    for k, devs in sorted(lanes.items()):
+        if now - notified.get(k, -NOTIFY_GAP) < NOTIFY_GAP:
+            continue
+        notified[k] = now
+        msg = f"{k} spun up at {time.strftime('%H:%M', time.localtime(now))} during quiet hours ({quiet['from']}-{quiet['to']})"
+        payload = {"event": "spin-up", "lane": k, "devices": devs, "epoch": now,
+                   "time": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(now)), "text": msg, "content": msg}
+        sent.append(payload)
+        if send:
+            send(url, payload)
+        else:
+            threading.Thread(target=webhook_safely, args=(url, payload), daemon=True).start()
+    return sent
+
+
+def webhook_safely(url, payload):
+    try:
+        send_webhook(url, payload)
+    except Exception as e:
+        log("webhook failed:", repr(e))
 
 
 def poller():
@@ -1085,10 +1158,14 @@ def read_settings():
         return {}
     if not isinstance(s, dict):
         return {}
-    try:
-        return {"hide": clean_hide(s["hide"])} if "hide" in s else {}
-    except ValueError:
-        return {}
+    out = {}
+    for key, clean in SETTINGS_KEYS.items():       # een ongeldige sleutel valt weg, de rest blijft
+        if key in s:
+            try:
+                out[key] = clean(s[key])
+            except ValueError:
+                pass
+    return out
 
 
 def clean_hide(value):
@@ -1108,6 +1185,42 @@ def clean_hide(value):
     return out
 
 
+HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+LANE_NAME = re.compile(r"^[\w.-]{1,64}$")
+
+
+def clean_quiet(value):
+    """Stille uren: None (uit) of {from, to, drives}. from/to als HH:MM (mag over middernacht),
+    drives een lijst baansleutels (array, trunk, ...); leeg = alle schijven."""
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError("quiet must be an object or null")
+    f, t, drives = value.get("from"), value.get("to"), value.get("drives", [])
+    if not (isinstance(f, str) and HHMM.match(f) and isinstance(t, str) and HHMM.match(t)) or f == t:
+        raise ValueError("quiet.from and quiet.to are two different times as HH:MM")
+    if not isinstance(drives, list) or len(drives) > 64 or not all(isinstance(d, str) and LANE_NAME.match(d) for d in drives):
+        raise ValueError("quiet.drives is a list of at most 64 drive or pool names")
+    return {"from": f, "to": t, "drives": list(dict.fromkeys(drives))}
+
+
+def clean_webhook(value):
+    """Webhook-URL voor meldingen: leeg (uit) of een http(s)-adres zonder spaties, hooguit 500 tekens."""
+    if value in (None, ""):
+        return ""
+    if not isinstance(value, str):
+        raise ValueError("webhook must be a string")
+    v = value.strip()
+    parts = urllib.parse.urlsplit(v)
+    if (len(v) > 500 or parts.scheme not in ("http", "https") or not parts.netloc
+            or any(ord(c) <= 32 or ord(c) == 127 for c in v)):
+        raise ValueError("webhook is an http(s) URL of at most 500 characters")
+    return v
+
+
+SETTINGS_KEYS = {"hide": clean_hide, "quiet": clean_quiet, "webhook": clean_webhook}
+
+
 def save_settings(new):
     """Bekende sleutels uit `new` controleren en atomair wegschrijven (alleen in DATA_DIR).
     Geeft de opgeslagen instellingen terug; ValueError bij ongeldige invoer."""
@@ -1115,8 +1228,8 @@ def save_settings(new):
         raise ValueError("settings must be a JSON object")
     with settings_lock:
         s = read_settings()
-        if "hide" in new:
-            s["hide"] = clean_hide(new["hide"])
+        cleaned = {k: clean(new[k]) for k, clean in SETTINGS_KEYS.items() if k in new}   # eerst alles controleren
+        s.update(cleaned)
         tmp = SETTINGS + ".tmp"
         with open(tmp, "w") as f:
             json.dump(s, f, indent=1)
@@ -1159,7 +1272,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self):
-        if self.path.split("?", 1)[0] != "/data/settings.json":
+        route = self.path.split("?", 1)[0]
+        if route not in ("/data/settings.json", "/data/notify-test"):
             self.send_error(404)
             return
         # alleen JSON: een gewoon formulier van een andere site kan dan niets opslaan
@@ -1175,6 +1289,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if not 0 <= size <= SETTINGS_BODY_MAX:
             self.send_error(413)
             return
+        if route == "/data/notify-test":
+            self.rfile.read(size)
+            self.notify_test()
+            return
         try:
             saved = save_settings(json.loads(self.rfile.read(size) or b"null"))
         except ValueError as e:      # ook onleesbare JSON
@@ -1185,6 +1303,20 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_json({"error": "could not save settings"}, 500)
             return
         self.send_json(saved)
+
+    def notify_test(self):
+        """Testmelding naar de opgeslagen webhook (niet naar een adres uit het verzoek)."""
+        url = read_settings().get("webhook")
+        if not url:
+            self.send_json({"ok": False, "error": "no webhook saved"}, 400)
+            return
+        msg = "Test from Spin Dashboard: notifications work"
+        try:
+            status = send_webhook(url, {"event": "test", "epoch": int(time.time()), "text": msg, "content": msg})
+        except Exception as e:
+            self.send_json({"ok": False, "error": str(e)[:200]}, 502)
+            return
+        self.send_json({"ok": True, "status": status})
 
     def send_json(self, obj, status=200):
         body = json.dumps(obj).encode()

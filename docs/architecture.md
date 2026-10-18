@@ -30,7 +30,8 @@
 
 ## Components
 
-**Poller.** Every `POLL_INTERVAL` seconds. Determines the HDDs from `disks.ini` (only
+**Poller.** Every `POLL_INTERVAL` seconds. A spin-up inside the quiet hours (Settings) of a drive that
+takes part is sent to the webhook, in a separate thread so a slow receiver never delays the poll. Determines the HDDs from `disks.ini` (only
 `rotational=1`), polls their state and writes changes as `spin` lines. On the first poll after
 start and on the first poll of each day it writes the current state of every disk as `state`
 lines, plus the disk names as `disk` lines.

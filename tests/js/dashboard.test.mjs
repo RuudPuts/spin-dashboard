@@ -30,7 +30,9 @@ function load(files, url = 'http://dash/?lang=nl', languages = ['en-US'], stored
         w.__fetched.push(u);
         if (opts.method === 'POST') {     // opslaan: vastleggen; files.POST = false laat het mislukken
           w.__posts.push({ url: u, type: opts.headers['Content-Type'], body: JSON.parse(opts.body) });
-          return files.POST === false ? Promise.reject(new Error('offline')) : Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+          if (files.POST === false) return Promise.reject(new Error('offline'));
+          const reply = Object.entries(files.POSTREPLY || {}).find(([k]) => u.includes(k));
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(reply ? reply[1] : {}) });
         }
         const key = Object.keys(files).find((k) => u.includes(k));
         if (!key || files[key] === null) return Promise.resolve({ ok: false });
@@ -1448,5 +1450,51 @@ test('containers of one Compose project can count as one source', async () => {
   assert.match(text(d.getElementById('profileBody')), /Start en stop\s*Start plex/);
   assert.deepEqual(JSON.parse(w.localStorage.getItem('spindash.group')), { merge: true, compose: true });
   assert.match([...d.querySelectorAll('#feed li')].map(text).join('\n'), /plex › Plex Media Scan/);   // de feed blijft per container
+  dom.window.close();
+});
+
+// ---------- stille uren ----------
+const hhmmOf = (ms) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+
+test('quiet hours from the server shade the timeline and mark spin-ups inside them', async () => {
+  // venster om de eerste spin-up van DOCK heen (120 min geleden), niet om de tweede (96 min geleden)
+  const quiet = { from: hhmmOf(now - 125 * 60e3), to: hhmmOf(now - 110 * 60e3), drives: [] };
+  const dom = await load({ ...DOCK, 'settings.json': JSON.stringify({ hide: [], quiet, webhook: 'https://ntfy.example/x' }) });
+  const d = dom.window.document;
+  assert.ok(d.querySelector('#laneList .trace .quiet').getAttribute('d').length > 0);
+  assert.equal(d.getElementById('legQuiet').hidden, false);
+  const ups = [...d.querySelectorAll('#events tr')].filter((tr) => /Opgespind/.test(text(tr)));
+  assert.equal(ups.length, 2);
+  assert.equal(ups.filter((tr) => tr.querySelector('.quiet-tag')).length, 1);
+  assert.equal(text(ups.find((tr) => tr.querySelector('.quiet-tag')).querySelector('.quiet-tag')), 'stille uren');
+  d.getElementById('openSettings').click();
+  assert.equal(d.getElementById('quietOn').checked, true);
+  assert.equal(d.getElementById('quietFrom').value, quiet.from);
+  assert.equal(d.getElementById('webhookUrl').value, 'https://ntfy.example/x');
+  assert.deepEqual([...d.querySelectorAll('#quietLanes input')].map((i) => i.value), ['trunk']);
+  dom.window.close();
+});
+
+test('quiet hours apply only to the chosen drives and are saved on the server', async () => {
+  const quiet = { from: hhmmOf(now - 125 * 60e3), to: hhmmOf(now - 110 * 60e3), drives: ['array'] };   // trunk doet niet mee
+  const dom = await load({ ...DOCK, 'settings.json': JSON.stringify({ hide: [], quiet }), POSTREPLY: { 'notify-test': { ok: true, status: 200 } } });
+  const d = dom.window.document, w = dom.window;
+  assert.equal(d.querySelector('#laneList .trace .quiet').getAttribute('d'), '');
+  assert.equal(d.querySelectorAll('#events .quiet-tag').length, 0);
+  d.getElementById('openSettings').click();
+  const box = d.querySelector('#quietLanes input[value="trunk"]');
+  box.checked = true; box.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(w.__posts.at(-1).body, { quiet: { ...quiet, drives: ['trunk'] }, webhook: '' });
+  assert.equal(d.querySelectorAll('#events .quiet-tag').length, 1);
+  const on = d.getElementById('quietOn');
+  on.checked = false; on.dispatchEvent(new w.Event('change'));
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(w.__posts.at(-1).body, { quiet: null, webhook: '' });
+  assert.equal(d.getElementById('quietBox').hidden, true);
+  d.getElementById('webhookTest').click();
+  await new Promise((r) => setTimeout(r, 30));
+  assert.ok(w.__posts.some((p) => p.url === 'data/notify-test'));
+  assert.equal(d.getElementById('quietStatus').textContent, 'Test verstuurd.');
   dom.window.close();
 });
