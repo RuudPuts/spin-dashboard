@@ -2,6 +2,9 @@
 
 Newest first.
 
+## 2026-10-18: period buttons on a phone
+- The period buttons fill the width on a narrow screen (wider where the text is longer, text may wrap to two lines) instead of scrolling with a hidden scrollbar, so "All" is never cut off
+
 ## 2026-10-18: release checks
 - Tested on an array-less setup with a Btrfs HDD pool (Unraid 7.3.3, pool `trunk` with four HDDs, NVMe pool `frunk` for appdata): the image runs, watches `/mnt/trunk` and logs spin state, file access and container events
 - Documented in `docs/publishing.md` why the image is amd64 only

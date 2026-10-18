@@ -48,9 +48,12 @@ button,select{font:inherit;color:inherit}
 .icon-btn svg{width:20px;height:20px}
 .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;min-height:38px}
 .seg button{white-space:nowrap}
-/* smal scherm: de periodeknoppen scrollen horizontaal in plaats van hun tekst af te breken */
-#ranges{max-width:100%;overflow-x:auto;scrollbar-width:none}
-#ranges::-webkit-scrollbar{display:none}
+/* smal scherm: de periodeknoppen vullen samen de breedte (breder waar de tekst langer is); de tekst mag over twee regels,
+   zodat ze allemaal zichtbaar blijven (eerder scrolden ze met een verborgen scrollbalk en viel "Alles" weg) */
+@media (max-width:560px){
+  #ranges{display:flex;width:100%}
+  #ranges button{flex:1 1 auto;white-space:normal;padding:6px 4px;line-height:1.2}
+}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
 .seg button{border:0;background:none;padding:7px 12px;cursor:pointer;color:var(--muted)}
 .seg button+button{border-left:1px solid var(--line)}

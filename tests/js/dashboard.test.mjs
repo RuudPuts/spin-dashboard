@@ -1347,3 +1347,9 @@ test('an old saved layout without sizes keeps the default sizes', async () => {
   assert.ok(d.querySelector('#dash > [data-card="days"]').hasAttribute('data-half'));
   dom.window.close();
 });
+
+test('on a phone the period buttons fill the width instead of scrolling with a hidden scrollbar', () => {
+  assert.doesNotMatch(HTML, /#ranges\{[^}]*overflow-x:auto/);
+  assert.doesNotMatch(HTML, /#ranges::-webkit-scrollbar/);
+  assert.match(HTML, /@media \(max-width:560px\)\{\s*#ranges\{display:flex;width:100%\}\s*#ranges button\{flex:1 1 auto;white-space:normal/);
+});
