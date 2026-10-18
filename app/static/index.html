@@ -237,6 +237,7 @@ h3.sub{font-size:0.8438rem;font-weight:600;margin:18px 0 6px}
 .feed .fb.w{background:var(--up-text)} .feed .fb.r{background:var(--spin)}
 .feed .fp{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .haspath{cursor:help}
+.haspath:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:2px}
 .feed .fs{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:9rem}
 .feed time{color:var(--muted);white-space:nowrap;font-size:0.75rem}
 .feed .fx{font-weight:600;color:var(--ink)}
@@ -1837,13 +1838,16 @@ function actDrives(a, b, devs){
 const topN = (obj, n) => Object.entries(obj).sort((p, q) => q[1] - p[1]).slice(0, n);
 function actRow(label, n, max, cls){
   const isFile = cls === 'muted';   // bestandsrijen krijgen een hover-overlay met het volledige pad
-  return `<div class="cause-row"><span class="cause-name"><span class="cn${cls ? ' ' + cls : ''}${isFile ? ' haspath' : ''}"${isFile ? '' : ` title="${esc(label)}"`} data-path="${esc(label)}">${esc(label)}</span></span>
+  return `<div class="cause-row"><span class="cause-name"><span class="cn${cls ? ' ' + cls : ''}${isFile ? ' haspath' : ''}"${isFile ? ` tabindex="0" aria-label="${esc(label)}"` : ` title="${esc(label)}"`} data-path="${esc(label)}">${esc(label)}</span></span>
     <span class="cause-bar"><i style="width:${n / max * 100}%"></i></span><b>${n}</b></div>`;
 }
 // Twee kaartjes: lezen en schrijven. Per kaartje alleen de schijven met activiteit in die richting,
 // de drukste bovenaan, met de top-bronnen en daaronder de top-bestanden.
 const actSection = (key, rows) => rows.length ? `<h4>${esc(t(key))}</h4>${rows.join('')}` : '';
 function renderActDrives(a, b, devs){
+  keepPathFocus($('actReads').closest('main'), () => drawActDrives(a, b, devs));
+}
+function drawActDrives(a, b, devs){
   const list = actDrives(a, b, devs);
   for (const dir of ['r', 'w']){
     const el = $(dir === 'r' ? 'actReads' : 'actWrites'), D = dir.toUpperCase();
@@ -1882,7 +1886,8 @@ function feedAgo(now, ts){
   if (m < 60) return t('agoMin', {n: m});
   return t('agoHr', {n: Math.round(m / 60)});
 }
-function renderFeed(){
+function renderFeed(){ keepPathFocus($('feed'), drawFeed); }
+function drawFeed(){
   const el = $('feed');
   const now = Date.now();
   const fresh = [];
@@ -1905,7 +1910,7 @@ function renderFeed(){
   el.innerHTML = items.map(({e, k, d, src, n, fresh}) => `<li${fresh ? ' class="fresh"' : ''} data-k="${esc(k)}">
       <span class="dot ${d}"></span>
       <span class="fb ${d}" title="${esc(t(d === 'w' ? 'rwW' : 'rwR'))}">${d.toUpperCase()}</span>
-      <span class="fp haspath" data-path="${esc(e.path)}">${esc(relPath(e))}</span>
+      <span class="fp haspath" tabindex="0" aria-label="${esc(e.path)}" data-path="${esc(e.path)}">${esc(relPath(e))}</span>
       <span class="fs">${esc(src)}</span>
       <time>${n > 1 ? `<span class="fx" title="${esc(t('feedRepeat', {n}))}">×${n}</span> ` : ''}${esc(feedAgo(now, e.t))}</time></li>`).join('')
     || `<li class="muted">${esc(t('actNone'))}</li>`;
@@ -1934,6 +1939,13 @@ document.addEventListener('pointerout', e => { if (pathOf(e) && e.pointerType !=
 document.addEventListener('focusin', e => { const el = pathOf(e); if (el) showPath(el); });
 document.addEventListener('focusout', e => { if (pathOf(e)) hidePath(); });
 document.addEventListener('click', e => { const el = pathOf(e); if (el) $('tip').hidden ? showPath(el) : hidePath(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && pathOf(e)) hidePath(); });
+// Bij opnieuw tekenen (live-feed, kaartjes) de toetsenbordfocus op hetzelfde pad houden
+function keepPathFocus(el, draw){
+  const f = document.activeElement, path = f && el.contains(f) && f.classList.contains('haspath') ? f.dataset.path : null;
+  draw();
+  if (path){ const again = [...el.querySelectorAll('.haspath')].find(x => x.dataset.path === path); if (again) again.focus(); }
+}
 
 /* ---------- info-icoontjes met uitleg (hover, focus of tik) ---------- */
 const infoBtn = key => key

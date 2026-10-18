@@ -2,6 +2,9 @@
 
 Newest first.
 
+## 2026-10-18: file paths by keyboard
+- File rows in Reads/Writes per drive, the profile and the live feed can be reached with Tab; focus shows the full path in the overlay, screen readers hear it as the label, Escape closes the overlay, and focus stays on the same path when the feed or the cards redraw
+
 ## 2026-10-18: one word for the hardware
 - The English UI says "drive" everywhere (the events table, the filter, the subtitle and the empty-state text said "disk"); a test keeps it that way. The other languages already used one word. README wording follows; screenshots refreshed
 

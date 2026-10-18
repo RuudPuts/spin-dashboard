@@ -1359,3 +1359,21 @@ test('the English UI calls the hardware "drive" everywhere, never "disk"', () =>
   const texts = [...en.matchAll(/(\w+):'((?:[^'\\]|\\.)*)'/g)].filter(([, k]) => k !== 'viaDisk').map(([, k, v]) => `${k}: ${v}`);
   assert.deepEqual(texts.filter((x) => /\bdisks?\b/i.test(x.split(': ')[1])), []);
 });
+
+test('full file paths can be reached with the keyboard and keep focus when the feed redraws', async () => {
+  const dom = await loadWithStream(RW);
+  const d = dom.window.document, w = dom.window;
+  const fp = d.querySelector('#feed .haspath');
+  assert.equal(fp.getAttribute('tabindex'), '0');
+  assert.match(fp.getAttribute('aria-label'), /^\/mnt\//);                 // schermlezer hoort het hele pad
+  assert.equal(d.querySelector('#actWrites .haspath').getAttribute('tabindex'), '0');
+  fp.focus();
+  assert.equal(d.getElementById('tip').hidden, false);
+  fp.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  assert.equal(d.getElementById('tip').hidden, true);
+  const path = fp.dataset.path;
+  w.__push(`${Math.floor(Date.now() / 1000)},who,container,sonarr,98,geschreven,/mnt/trunk/appdata/sonarr/new.db`);
+  await new Promise((r) => setTimeout(r, 400));
+  assert.equal(d.activeElement.dataset.path, path);                        // focus overleeft het opnieuw tekenen
+  dom.window.close();
+});
