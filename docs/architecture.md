@@ -69,16 +69,16 @@ stays unchanged.
 
 At the top, *Key figures* show spin-ups, spinning hours, the share of time all drives slept and the
 longest full rest, each compared with the previous period of the same length. *Spin-ups per day* shows
-the trend over all days with the selected period highlighted, and *Spin-ups by hour* covers at least the
-last 7 days. *By source* ranks containers and processes by the spin-ups they caused, with their reads,
+the trend over all days with the selected period highlighted, and *Spin-ups per hour of day* covers at least the
+last 7 days. *Activity per source* ranks containers and processes by the spin-ups they caused, with their reads,
 writes and drives. *Timeline per source* draws every access of the busiest sources on the same axis, over a band that
-shows when any drive spins; *What keeps them awake* adds up per source how long its accesses postponed
-the spin-down; *Rhythm* recognises fixed intervals and daily times. Clicking a source name opens its
-profile. *Spin duration and rest* shows per lane the median run after a spin-up, the longest
+shows when any drive spins; *Kept awake per source* adds up per source how long its accesses postponed
+the spin-down; *Rhythm per source* recognises fixed intervals and daily times. Clicking a source name opens its
+profile. *Spin time and rest per drive* shows per lane the median run after a spin-up, the longest
 rest and how often a drive woke up within 30 minutes of going to standby. Both use `/data/spins.csv`: only the
 spin lines of every day, so the comparison needs no extra day files.
 
-Below the spin-up analysis, two *Active drives* cards (reading and writing) show per drive the top
+Below the spin-up analysis, *Reads per drive* and *Writes per drive* show per drive the top
 sources and files in that direction over the period (also without spin-ups), and a *Live activity* feed lists the most recent file
 events newest-first with an R/W marker and a relative time. The feed is **live**: the web server keeps
 a Server-Sent Events stream (`/data/stream`) open per browser, and `write_who()` pushes each new line

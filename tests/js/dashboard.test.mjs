@@ -646,8 +646,9 @@ test('the settings button opens a dialog with the language choice and the card l
   assert.ok(d.getElementById('settings').hasAttribute('open'));
   assert.equal(gear.getAttribute('aria-expanded'), 'true');
   const names = [...d.querySelectorAll('#cardList li label')].map(text);
-  assert.deepEqual(names, ['Kerncijfers', 'Tijdlijn per schijf', 'Tijdlijn per bron', 'Spin-ups per dag', 'Spin-ups per uur van de dag', 'Wat maakt de schijven wakker', 'Wat houdt ze wakker', 'Per bron', 'Ritme',
-    'Actieve schijven: lezen', 'Actieve schijven: schrijven', 'Draaiduur en rust', 'Live activiteit', 'Gebeurtenissen']);
+  assert.deepEqual(names, ['Kerncijfers', 'Tijdlijn per schijf', 'Tijdlijn per bron', 'Spin-ups per dag', 'Spin-ups per uur van de dag',
+    'Oorzaken van spin-ups per map', 'Wakker gehouden per bron', 'Activiteit per bron', 'Ritme per bron',
+    'Lezen per schijf', 'Schrijven per schijf', 'Draaitijd en rust per schijf', 'Live activiteit', 'Gebeurtenissen']);
   d.getElementById('settingsDone').click();
   assert.ok(!d.getElementById('settings').hasAttribute('open'));
   assert.equal(d.activeElement, gear);                    // focus terug op de knop
@@ -1156,4 +1157,16 @@ test('clicking a source opens its profile with figures, heatmap, folders and fil
   assert.ok(!d.getElementById('profile').hasAttribute('open'));
   assert.equal(d.activeElement, btn);                      // focus terug op de naam
   dom.window.close();
+});
+
+test('every card title follows one pattern: a subject, optionally "per" a dimension', async () => {
+  for (const [lang, per] of [['en', ' per '], ['nl', ' per '], ['fr', ' par '], ['de', ' pro '], ['es', ' por ']]) {
+    const dom = await load(POOL, `http://dash/?lang=${lang}`);
+    const titles = [...dom.window.document.querySelectorAll('#dash > [data-card] h2')].map(text);
+    assert.equal(titles.length, 14);
+    // geen vragen, geen dubbele punten, geen titel die met het voorzetsel begint
+    assert.ok(titles.every((x) => !/[?:]/.test(x) && !x.toLowerCase().startsWith(per.trim())), `${lang}: ${titles.join(' | ')}`);
+    assert.ok(titles.filter((x) => x.includes(per)).length >= 10, `${lang}: ${titles.join(' | ')}`);
+    dom.window.close();
+  }
 });

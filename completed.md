@@ -2,6 +2,10 @@
 
 Newest first.
 
+## 2026-10-18: consistent card titles
+- Every card title follows one pattern, "<subject> per <dimension>", and uses "drive" for the hardware: Timeline per drive, Spin-ups per hour of day, Spin-up causes per folder, Kept awake per source, Activity per source, Rhythm per source, Reads per drive, Writes per drive, Spin time and rest per drive (and the same in nl, fr, de, es)
+- A test checks the pattern in every language; README screenshots refreshed
+
 ## 2026-10-18: container activity in depth
 - Timeline per source: every access of the busiest sources as a tick (read/write) on the same time axis as the drives, over a band that shows when any drive spins
 - What keeps them awake: per source the spinning time its accesses added by postponing the spin-down, and how often it was the last access before standby

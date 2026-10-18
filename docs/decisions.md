@@ -100,14 +100,14 @@ A `W` event fires on every write burst, so it is deduplicated per path + source 
 `DEDUP_SECONDS`, exactly like opens; otherwise a busy share would flood the day file. Adding the
 action to the dedup key means a read and a write of the same file each survive once per window.
 
-The frontend's *Active drives* cards (one for reads, one for writes) answer "why is this drive never idle" directly from the same
+The frontend's *Reads per drive* and *Writes per drive* cards answer "why is this drive never idle" directly from the same
 activity stream: per drive the top write and read sources and files, even when there were no
 spin-ups at all in the period.
 
 ## Lookups must not scan
 The frontend links every file access to its source (`who` line) by path and time. The first
 version scanned the full list for that path on every lookup. Paths such as a share root have
-thousands of lines, and the Active drives panel looks up every event in the period, so the work
+thousands of lines, and the Reads/Writes per drive cards look up every event in the period, so the work
 grew quadratically: 110,000 real lines took about 2 minutes to process. The who index is now sorted
 by time per path, with a separate index for SMB/NFS lines, and `nearestWho` uses binary search.
 Profile with a realistic data set (`node --cpu-prof` on the page in jsdom works well) before

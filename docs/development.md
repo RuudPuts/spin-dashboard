@@ -37,14 +37,14 @@ start, which is a quick way to try the dashboard on real data. For the frontend 
 UI follows the browser language or the last chosen language (`localStorage`, key `spindash.lang`).
 The card layout from Settings is stored per browser under `spindash.cards`: a JSON list of
 `{id, hidden}` in display order (ids `kpi`, `lanes`, `days`, `hist`, `causes`, `src`, `actR`, `actW`, `rest`, `feed`, `events`); unknown ids are
-ignored and missing cards are added at the end. The old id `act` (one Active drives card) is read as
+ignored and missing cards are added at the end. The old id `act` (one Active drives card, before the split) is read as
 `actR` and `actW` in its place, with the same `hidden`. On a wide screen every card with `data-half`
 (all but `kpi`, `lanes` and `events`) takes half the width; below 820px every card is full width.
-Key figures, Spin-ups per day, Spin-ups by hour (at least the last 7 days) and Spin duration and rest are
+Key figures, Spin-ups per day, Spin-ups per hour of day (at least the last 7 days) and Spin time and rest per drive are
 computed from `data/spins.csv` (all days), per lane as on the timeline (a merged pool counts once); only the
-spinning hours in Key figures add up the physical drives. "Woke quickly" in Spin duration and rest counts
+spinning hours in Key figures add up the physical drives. "Woke quickly" in Spin time and rest per drive counts
 spin-ups within 30 minutes of going to standby (`QUICK_MS`).
-The source cards (Timeline per source, What keeps them awake, By source, Rhythm and the profile dialog) share one
+The source cards (Timeline per source, Kept awake per source, Activity per source, Rhythm per source and the profile dialog) share one
 index per render (`sourceIndex()`): per source the spin-ups it caused, reads and writes per lane, every access
 in the window and the kept-awake time. Kept awake: within each spinning period of a lane, every access gets the
 time since the previous access (or since the spin-up), so per period the parts add up to the time from spin-up
